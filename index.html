@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Team Pulse — Prendre le pouls. Ouvrir la conversation.</title>
   <meta name="description" content="Prototype d'expression collective pour ateliers d'équipe en présentiel.">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=20260805-session">
 </head>
 <body>
 
@@ -27,12 +27,12 @@
       </div>
     </div>
     <div class="header-actions">
-      <div class="session-status-badge" title="Les réponses restent uniquement dans cette page et disparaissent lorsqu’elle est rechargée.">
-        <span>Réponses non conservées</span>
-        <span class="sr-only">. Les réponses restent uniquement dans cette page et disparaissent lorsqu’elle est rechargée.</span>
+      <div class="session-status-badge" title="Les réponses sont transmises à la session et présentées uniquement sous forme agrégée au facilitateur.">
+        <span>Session privée</span>
+        <span class="sr-only">. Les réponses sont transmises à la session et présentées uniquement sous forme agrégée au facilitateur.</span>
       </div>
       <div id="header-facilitator-container">
-        <!-- Injected dynamic "Voir les résultats" / "Retour au questionnaire" button -->
+        <!-- Injected dynamic "Espace facilitateur" / "Rejoindre une session" button -->
       </div>
     </div>
   </header>
@@ -53,9 +53,9 @@
 
   <!-- Footer -->
   <footer class="app-footer" role="contentinfo">
-    <p class="privacy-statement">Aucun nom n’est demandé. Les réponses ne quittent pas cette page et disparaissent lorsqu’elle est rechargée.</p>
+    <p class="privacy-statement">Aucun nom n’est demandé. Le facilitateur ne voit que la répartition du groupe, jamais les choix individuels.</p>
   </footer>
 
-  <script type="module" src="src/app.js"></script>
+  <script type="module" src="src/app.js?v=20260805-session"></script>
 </body>
 </html>

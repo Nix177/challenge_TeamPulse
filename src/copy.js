@@ -96,7 +96,7 @@ export const COPY = Object.freeze({
   },
 
   privacy: {
-    statement: 'Aucun nom n’est demandé. Les réponses ne quittent la page que pour alimenter le décompte agrégé de cette session.'
+    statement: 'Aucun nom n’est demandé. Le facilitateur ne voit que la répartition du groupe, jamais les choix individuels.'
   },
 
   demo: {
