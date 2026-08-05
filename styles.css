@@ -8,7 +8,7 @@
   --surface-raised: #ffffff;
   --ink: #17231e;
   --ink-soft: #59655f;
-  --ink-faint: #7b8580;
+  --ink-faint: #54615b; /* Verified > 4.5:1 WCAG AA contrast ratio */
   --line: #d9d4ca;
 
   --accent: #126a5a;
@@ -166,6 +166,20 @@ body {
   background-color: var(--accent);
 }
 
+@media (max-width: 480px) {
+  .app-header {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 1.25rem 1.25rem 0.5rem 1.25rem;
+    gap: 0.75rem;
+  }
+
+  .header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
 /* Main Container */
 .main-container {
   flex: 1;
@@ -178,7 +192,7 @@ body {
 /* Main Presentation & Content Panels */
 .presentation-panel {
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: 1px solid rgba(217, 212, 202, 0.7);
   border-radius: var(--radius-md);
   margin-bottom: 2rem;
   box-shadow: var(--shadow-subtle);
@@ -324,13 +338,14 @@ body {
 
 @media (max-width: 1024px) {
   .options-grid {
-    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
   }
 }
 
 @media (max-width: 640px) {
   .options-grid {
     grid-template-columns: 1fr;
+    gap: 1rem;
   }
 }
 
@@ -464,6 +479,12 @@ body {
 .btn:focus-visible {
   outline: none;
   box-shadow: var(--shadow-focus);
+}
+
+.btn-sm {
+  min-height: 44px;
+  padding: 0.45rem 1rem;
+  font-size: 0.875rem;
 }
 
 .btn-primary {
@@ -609,7 +630,7 @@ body {
   margin: 2rem 0 3rem 0;
   padding: 2rem;
   background: var(--surface-raised);
-  border: 1px solid var(--line);
+  border: 1px solid rgba(217, 212, 202, 0.6);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-subtle);
   display: flex;
@@ -672,10 +693,23 @@ body {
   gap: 0.5rem;
 }
 
+.dist-col-dot {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  display: inline-block;
+}
+
 .dist-col-val {
   font-size: 1.2rem;
   font-weight: 800;
   color: var(--ink);
+}
+
+.dist-col-pct {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--ink-soft);
 }
 
 .dist-bar-track {
@@ -696,7 +730,7 @@ body {
 /* Observation Panel */
 .observation-card {
   background: var(--surface-raised);
-  border: 1px solid var(--line);
+  border: 1px solid rgba(217, 212, 202, 0.6);
   border-left: 5px solid var(--accent);
   border-radius: var(--radius-md);
   padding: 2rem;
@@ -785,4 +819,32 @@ body {
   color: #7a2323;
   font-size: 1rem;
   line-height: 1.45;
+}
+
+/* Utility classes for craft refinement */
+.presentation-heading {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 0.5rem;
+}
+
+.confirmation-title {
+  font-size: 1.25rem;
+}
+
+.confirmation-desc {
+  font-size: 1rem;
+}
+
+.u-mb-0 {
+  margin-bottom: 0 !important;
+}
+
+.u-mb-lg {
+  margin-bottom: 2.5rem !important;
+}
+
+.u-color-danger {
+  color: var(--danger) !important;
 }

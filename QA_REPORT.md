@@ -2,7 +2,7 @@
 
 **Date**: August 5, 2026  
 **Project**: Team Pulse (Living Pulse Redesign)  
-**Status**: Completed & Verified  
+**Status**: Fully Audited, Corrected & Verified  
 
 ---
 
@@ -11,14 +11,14 @@
 | Requirement Area | Acceptance Criterion | Status | Verification Method |
 | :--- | :--- | :--- | :--- |
 | **Living Pulse Concept** | Progression: `individual expression → collective perception → human conversation` | **PASSED** | Code & UI Inspection |
-| **Visual Aesthetics** | Warm canvas (`#f3efe7`), editorial typography, no white-box SaaS header | **PASSED** | `experience-auditor` Review |
-| **Data Visualization** | Smooth SVG cubic curve generated dynamically from percentages | **PASSED** | `visualisation.test.mjs` (4/4 pass) |
+| **Visual Aesthetics** | Warm canvas (`#f3efe7`), editorial typography, organic tone accents | **PASSED** | `VISUAL_AUDIT.md` Inspection |
+| **Data Visualization** | Smooth SVG cubic curve generated dynamically from actual percentages | **PASSED** | `visualisation.test.mjs` (4/4 pass) |
 | **Participant Flow** | 5 canonical option tiles, confirmation summary object, thank-you transition view | **PASSED** | Automated Tests & UI Flow |
 | **Facilitator Flow** | Pre-reveal screen, 650ms reveal transition, observations & conversation card | **PASSED** | Browser Verification & `styles.css` |
 | **Deterministic Rules** | Priority ordering: Rule 1 (Support) > Rule 2 (Contrast) > Rule 3 (Preserve) > Rule 4 (Fallback) | **PASSED** | `insight.test.mjs` (8/8 pass) |
-| **Privacy & Zero Storage** | Zero `localStorage`, `sessionStorage`, `cookies`, `IndexedDB`, `fetch`, `XHR`, or console logs | **PASSED** | `privacy.test.mjs` & `code-auditor` |
-| **Demo & Present Modes** | `?demo=1` badge + demo loader; `?present=1` panel; isolated from normal mode | **PASSED** | `app.js` & `experience-auditor` |
-| **Accessibility (A11y)** | Keyboard accessible, visible focus, ARIA live region, 48px+ touch targets, 360px+ responsive | **PASSED** | `ACCESSIBILITY_AUDIT.md` |
+| **Privacy & Zero Storage** | Zero `localStorage`, `sessionStorage`, `cookies`, `IndexedDB`, `fetch`, `XHR`, or console logs | **PASSED** | `privacy.test.mjs` (3/3 pass) |
+| **Demo & Present Modes** | `?demo=1` badge + demo loader; `?present=1` panel; isolated from normal mode | **PASSED** | `app.js` & URL Mode Testing |
+| **Accessibility (A11y)** | Keyboard accessible, visible focus, ARIA live region, >= 44px touch targets, WCAG AA contrast | **PASSED** | `ACCESSIBILITY_AUDIT.md` & `styles.css` |
 
 ---
 
@@ -57,30 +57,40 @@ ok 23 - generatePulseDataVisualization generates valid SVG path without NaN or u
 All **23 automated unit & privacy tests passed cleanly**.
 
 Executed syntax checks:
-`node --check src/*.js tests/*.mjs` — **All 10 syntax checks passed cleanly**.
+`node --check src/app.js src/copy.js src/insight.js src/model.js src/options.js src/visualisation.js` — **All syntax checks passed cleanly with exit code 0**.
 
 ---
 
-## 3. Visual Review & Independent Auditor Findings
+## 3. Independent Visual Audit & Corrections Applied
 
-### `experience-auditor` Subagent Findings
-- **Generic Survey?** **No.** Mono-screen view card focused exclusively on each stage (vote, confirmation, thank-you).
-- **Generic SaaS Dashboard?** **No.** Uses warm canvas background (`#f3efe7`), surface tone (`#fffdf9`), and editorial typography (`2.2rem` main headings), moving away from corporate blue-grey dashboards.
-- **Collection of White Cards?** **No.** Option tiles feature custom SVG glyphs, interactive tone borders (`tone-1` to `tone-5`), and subtle hover transforms.
-- **French Copy & Privacy**: Centralized copy in `src/copy.js` matches exact French specifications verbatim.
-
-### `code-auditor` Subagent Findings
-- Data immutability strictly enforced (`Object.freeze`).
-- SVG curve generator (`src/visualisation.js`) processes percentages into valid 2D coordinates and cubic Bézier paths without NaN values.
-- Zero persistence or network calls confirmed across all runtime files.
+### Defects Found in `VISUAL_AUDIT.md` & Corrections Made
+1. **Header & Demo Touch Target Defect (Accessibility)**:
+   - *Defect*: `#btn-header-nav` and `#btn-load-demo` specified `min-height: 40px`, violating the mandatory 44 × 44 CSS pixels target size requirement.
+   - *Correction*: Updated `.btn-sm` class to enforce `min-height: 44px; padding: 0.45rem 1rem; font-size: 0.875rem;`.
+2. **Text Contrast Defect (Accessibility)**:
+   - *Defect*: Color `--ink-faint` (`#7b8580`) on `#fffdf9` surface yielded ~4.1:1 contrast ratio (below WCAG AA 4.5:1 requirement).
+   - *Correction*: Updated `--ink-faint` to `#54615b`, achieving > 4.5:1 WCAG AA compliant contrast ratio across all text contexts.
+3. **Broken 5-Option Continuum on Tablet (Visual)**:
+   - *Defect*: `@media (max-width: 1024px)` set `.options-grid` to `repeat(3, 1fr)`, splitting the 5-point spectrum into a 3 + 2 layout on tablet screens (641px–1024px).
+   - *Correction*: Preserved `grid-template-columns: repeat(5, 1fr)` down to 640px with tighter gap, reserving single-column vertical layout strictly for mobile screens (<640px).
+4. **360px Mobile Header Layout (Refinement)**:
+   - *Defect*: Header cramped brand title, tagline, badge, and navigation button horizontally at 360px.
+   - *Correction*: Added responsive `@media (max-width: 480px)` header rules for flex-direction column stacking.
+5. **Craft & Code Refinement (Inline Styles)**:
+   - *Defect*: Multiple inline `style="..."` attributes were present in `src/app.js`.
+   - *Correction*: Extracted all inline styles into clean CSS utility classes in `styles.css`.
+6. **SVG Padding Margin (Refinement)**:
+   - *Defect*: Node circles (`r="7"`) at 0% or 100% heights approached SVG box edges.
+   - *Correction*: Adjusted vertical padding (`minY = height - 20`, `maxY = 20`) in `src/visualisation.js` to guarantee node rendering within SVG viewbox bounds.
 
 ---
 
 ## 4. Remaining Accepted Limitations
-- **Contextual Anonymity in Small Groups**: In very small workshops (e.g. 3 participants), physical order of voting may allow participants to infer individual choices. This limitation is explicitly documented in `DESIGN_DIRECTION.md`, `README.md`, and the presentation panel (`?present=1`).
+- **Contextual Anonymity in Small Groups**: In very small workshops (e.g. 3 participants), physical order of voting on a single shared device may allow participants to infer individual choices. This limitation is explicitly documented in `DESIGN_DIRECTION.md`, `README.md`, `VISUAL_AUDIT.md`, and the presentation panel (`?present=1`).
+- **In-Memory Ephemeral State**: Page reload clears all current votes by design to strictly protect participant privacy.
 
 ---
 
 ## 5. Release Verdict
 
-**READY FOR VISUAL REVIEW**
+**READY FOR PRESENTATION**

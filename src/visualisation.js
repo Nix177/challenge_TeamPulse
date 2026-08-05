@@ -13,8 +13,8 @@ export function calculatePulsePoints(percentages = {}, width = 500, height = 120
   const usableWidth = width - (paddingX * 2);
   const stepX = usableWidth / (OPTION_IDS.length - 1);
   
-  const minY = height - 25; // 0% bottom baseline
-  const maxY = 25;          // 100% peak height
+  const minY = height - 20; // 0% bottom baseline (20px padding)
+  const maxY = 20;          // 100% peak height (20px padding)
   const rangeY = minY - maxY;
 
   return OPTION_IDS.map((id, index) => {

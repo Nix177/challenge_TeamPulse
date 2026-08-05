@@ -72,7 +72,7 @@ function initPanels() {
           <span class="demo-badge-tag">${COPY.demo.badge}</span>
           <strong>${COPY.demo.heading}</strong> — ${COPY.demo.body}
         </div>
-        <button id="btn-load-demo" class="btn btn-secondary" style="min-height: 40px; padding: 0.4rem 0.9rem; font-size: 0.875rem;">
+        <button id="btn-load-demo" class="btn btn-secondary btn-sm">
           ${COPY.demo.actionBtn}
         </button>
       </div>
@@ -99,7 +99,7 @@ function initPanels() {
       <details class="presentation-panel">
         <summary class="presentation-summary">${COPY.presentation.closedLabel}</summary>
         <div class="presentation-body">
-          <h2 style="font-size: 1.1rem; font-weight: 700; color: var(--ink); margin-bottom: 0.5rem;">${COPY.presentation.openHeading}</h2>
+          <h2 class="presentation-heading">${COPY.presentation.openHeading}</h2>
           ${sectionsMarkup}
           <p class="presentation-conclusion">${COPY.presentation.conclusion}</p>
         </div>
@@ -116,7 +116,7 @@ function renderHeaderFacilitatorButton() {
 
   if (isFacilitatorView) {
     headerFacilitatorContainerEl.innerHTML = `
-      <button id="btn-header-nav" class="btn btn-secondary" style="min-height: 40px; padding: 0.45rem 1rem; font-size: 0.875rem;">
+      <button id="btn-header-nav" class="btn btn-secondary btn-sm">
         ${COPY.brand.backToVoting}
       </button>
     `;
@@ -128,7 +128,7 @@ function renderHeaderFacilitatorButton() {
     });
   } else {
     headerFacilitatorContainerEl.innerHTML = `
-      <button id="btn-header-nav" class="btn btn-secondary" style="min-height: 40px; padding: 0.45rem 1rem; font-size: 0.875rem;">
+      <button id="btn-header-nav" class="btn btn-secondary btn-sm">
         ${COPY.brand.facilitatorAccess}
       </button>
     `;
@@ -257,8 +257,8 @@ function renderConfirmingView() {
     <div class="confirmation-summary-card" style="--summary-accent: ${selectedOpt.colorVar};">
       ${OPTION_SYMBOLS[selectedOpt.id]}
       <div>
-        <h3 class="option-title" style="font-size: 1.25rem;">${selectedOpt.label}</h3>
-        <p class="option-desc" style="font-size: 1rem;">${selectedOpt.supportingText}</p>
+        <h3 class="option-title confirmation-title">${selectedOpt.label}</h3>
+        <p class="option-desc confirmation-desc">${selectedOpt.supportingText}</p>
       </div>
     </div>
 
@@ -360,7 +360,7 @@ function renderResultsIntroView() {
     <h2 class="main-heading">${headingText}</h2>
     <p class="subheading">${COPY.facilitatorPreReveal.body}</p>
 
-    <div class="thankyou-cluster-container" aria-hidden="true" style="margin-bottom: 2.5rem;">
+    <div class="thankyou-cluster-container u-mb-lg" aria-hidden="true">
       <svg width="200" height="40" viewBox="0 0 200 40" fill="none" stroke="var(--ink-faint)" stroke-width="2" stroke-dasharray="4 4">
         <path d="M 0 20 Q 50 20, 100 20 T 200 20" />
       </svg>
@@ -411,10 +411,10 @@ function renderResultsRevealedView() {
     return `
       <div class="dist-col">
         <div class="dist-col-header">
-          <span style="width: 0.75rem; height: 0.75rem; border-radius: 50%; background-color: ${opt.colorVar}; display: inline-block;"></span>
+          <span class="dist-col-dot" style="background-color: ${opt.colorVar};"></span>
           <span>${opt.label}</span>
         </div>
-        <div class="dist-col-val">${count} <span style="font-size: 0.9rem; font-weight: 500; color: var(--ink-soft);">(${pct}%)</span></div>
+        <div class="dist-col-val">${count} <span class="dist-col-pct">(${pct}%)</span></div>
         <div class="dist-bar-track" aria-hidden="true">
           <div class="dist-bar-fill" style="width: ${pct}%; background-color: ${opt.colorVar};"></div>
         </div>
@@ -430,7 +430,7 @@ function renderResultsRevealedView() {
 
     <!-- Data-driven visualization section -->
     <section class="pulse-visualization-wrapper" aria-label="Visualisation de la répartition">
-      <h3 class="section-title" style="margin-bottom: 0;">${COPY.facilitatorRevealed.distributionTitle}</h3>
+      <h3 class="section-title u-mb-0">${COPY.facilitatorRevealed.distributionTitle}</h3>
       
       <div class="pulse-svg-container" aria-hidden="true">
         <svg class="pulse-svg-element" viewBox="0 0 500 120" preserveAspectRatio="none">
@@ -487,7 +487,7 @@ function renderResultsRevealedView() {
  */
 function renderResetConfirmationView() {
   viewCardEl.innerHTML = `
-    <h2 class="main-heading" style="color: var(--danger);">${COPY.resetConfirmation.heading}</h2>
+    <h2 class="main-heading u-color-danger">${COPY.resetConfirmation.heading}</h2>
     <div class="warning-box">
       ${COPY.resetConfirmation.body}
     </div>
