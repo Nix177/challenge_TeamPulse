@@ -11,9 +11,9 @@
 | Requirement Area | Acceptance Criterion | Status | Verification Method |
 | :--- | :--- | :--- | :--- |
 | **Plain-Language Standard** | Natural spoken French copy in `src/copy.js`; zero prohibited jargon phrases | **PASSED** | `tests/copy.test.mjs` (5/5 pass) |
-| **Submission Receipt** | Clear receipt: "C’est noté.", total collected count, neutral point animation, handoff prompt | **PASSED** | Automated Tests & UI Verification |
+| **Submission Receipt** | Clear receipt: "C’est noté.", total collected count, dynamic neutral point animation, handoff prompt, explicit local-storage reassurance | **PASSED** | Automated Tests & UI Verification |
 | **3-Scale Continuum** | Desktop 5 connected tiles, Tablet 5 compact points + description box, Mobile 1-column list | **PASSED** | CSS & Browser Responsive Test |
-| **Visual Architecture** | Cardless state-specific layout; reduced nested borders & shadows | **PASSED** | `VISUAL_AUDIT.md` Inspection |
+| **Visual Architecture** | Cardless state-specific layout; consolidated single-card receipt container; zero box-in-box overload | **PASSED** | `HUMAN_CLARITY_AUDIT.md` Inspection |
 | **Data Visualization** | Smooth SVG cubic curve generated dynamically from actual percentages | **PASSED** | `visualisation.test.mjs` (4/4 pass) |
 | **Deterministic Rules** | Priority ordering: Rule 1 (Support) > Rule 2 (Contrast) > Rule 3 (Preserve) > Rule 4 (Fallback) | **PASSED** | `insight.test.mjs` (8/8 pass) |
 | **Privacy & Zero Storage** | Zero `localStorage`, `sessionStorage`, `cookies`, `IndexedDB`, `fetch`, `XHR`, or console logs | **PASSED** | `privacy.test.mjs` (3/3 pass) |
@@ -66,28 +66,29 @@ Executed syntax checks:
 
 ---
 
-## 3. Findings & Refinements Applied
+## 3. Human Clarity Audit & Refinement Verification
 
-1. **Submission Receipt Clarity**:
-   - Replaced decorative thank-you screen with a concrete receipt displaying "C’est noté. Ta réponse a bien été comptée.", total collected count, neutral point-joining animation (450ms), and explicit handoff prompt ("Tu peux maintenant passer l’appareil à la personne suivante.").
-2. **Copywriting Modernization**:
-   - Centralized all copy in `src/copy.js`. Removed all all-uppercase decorative headings (`EXPRESSION INDIVIDUELLE`, `RÉPONSE AJOUTÉE`, `RÉSULTATS COLLECTIFS`) and product-design jargon.
-3. **Responsive 3-Scale Continuum**:
-   - Desktop (>=1000px): 5 connected tiles on 1 horizontal scale.
-   - Tablet (640–999px): 5-point compact scale with single active description region below.
-   - Mobile (<640px): Vertical list with label and supporting text.
-4. **Presentation Mode Copy**:
-   - Refactored presentation panel copy to sound like candidate explaining architectural decisions clearly without AI-generated fluff.
+1. **Explicit Local Storage Reassurance**:
+   - Updated `receipt.explanation` and `confirmation.privacyLine` in `src/copy.js` to explicitly state: *"Rien n’est envoyé sur Internet. Les réponses restent uniquement sur cet appareil..."*, removing all ambiguity for first-time users.
+2. **Dynamic Neutral Dots**:
+   - Refactored `.receipt-neutral-animation` in `src/app.js` to render existing grey dots up to `total - 1` (max 4) plus 1 joining green dot, ensuring the visual animation accurately represents the response incrementing the current session total.
+3. **Consolidated Card Structure**:
+   - Consolidated receipt count banner, neutral animation, explanation text, and handoff banner into a single clean `.receipt-card` container in `styles.css`, eliminating box-in-box stacking.
+4. **Tablet Option Label Scaling**:
+   - Adjusted `.option-title` font-size (`0.9rem`) and padding in `@media (min-width: 640px) and (max-width: 999px)` so canonical option titles ("Très difficile", "Très bien") do not awkwardly fragment across 3 lines.
+5. **Direct Handoff CTA**:
+   - Rephrased receipt CTA to `"Passer à la personne suivante"` with microcopy `"L’écran suivant repartira d’un choix vierge."`.
 
 ---
 
 ## 4. Remaining Accepted Limitations
 
-- **Contextual Anonymity in Small Groups**: In very small workshops (e.g. 3 participants), physical order of voting on a single shared device may allow participants to infer individual choices. This limitation is explicitly documented in `PROJECT_BRIEF.md`, `DESIGN_DIRECTION.md`, `README.md`, `VISUAL_AUDIT.md`, and the presentation panel (`?present=1`).
+- **Contextual Anonymity in Small Groups**: In very small workshops (e.g. 3 participants), physical order of voting on a single shared device may allow participants to infer individual choices. This limitation is explicitly documented in `PROJECT_BRIEF.md`, `DESIGN_DIRECTION.md`, `README.md`, `VISUAL_AUDIT.md`, `HUMAN_CLARITY_AUDIT.md`, and the presentation panel (`?present=1`).
 - **In-Memory Ephemeral State**: Page reload clears all current votes by design to strictly protect participant privacy.
 
 ---
 
 ## 5. Release Verdict
 
-**READY FOR HUMAN REVIEW**
+**CLEAR TO A FIRST-TIME USER**
+

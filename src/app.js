@@ -327,42 +327,44 @@ function renderReceiptView() {
   const total = getTotalVotes(currentCounts);
   const countText = formatCollectedCount(total);
 
+  // Dynamic neutral dots: show existing dots up to total - 1 (max 4), plus 1 joining green dot
+  const existingCount = Math.min(total - 1, 4);
+  const existingDotsMarkup = Array(existingCount).fill('<span class="neutral-dot existing-dot"></span>').join('');
+  const dotsClusterMarkup = `${existingDotsMarkup}<span class="neutral-dot joining-dot"></span>`;
+
   viewCardEl.innerHTML = `
     <span class="step-badge">${COPY.receipt.stepLabel}</span>
     <h2 class="main-heading">${COPY.receipt.heading}</h2>
     <p class="receipt-primary-body">${COPY.receipt.primaryBody}</p>
 
-    <!-- Prominent Dynamic Response Count Numeric Element -->
-    <div class="receipt-count-banner">
-      <span class="receipt-count-number">${total}</span>
-      <span class="receipt-count-label">${countText}</span>
-    </div>
+    <!-- Consolidated Receipt Card Container -->
+    <div class="receipt-card">
+      <div class="receipt-count-banner">
+        <span class="receipt-count-number">${total}</span>
+        <span class="receipt-count-label">${countText}</span>
+      </div>
 
-    <!-- Neutral Point-Joining Visual Animation -->
-    <div class="receipt-neutral-animation" aria-hidden="true">
-      <div class="receipt-dots-cluster">
-        <span class="neutral-dot existing-dot"></span>
-        <span class="neutral-dot existing-dot"></span>
-        <span class="neutral-dot existing-dot"></span>
-        <span class="neutral-dot joining-dot"></span>
+      <!-- Dynamic Neutral Point-Joining Visual Animation -->
+      <div class="receipt-neutral-animation" aria-hidden="true">
+        <div class="receipt-dots-cluster">
+          ${dotsClusterMarkup}
+        </div>
+      </div>
+
+      <p class="receipt-explanation-text">${COPY.receipt.explanation}</p>
+
+      <div class="receipt-handoff-banner">
+        <svg class="handoff-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M17 1l4 4-4 4"/>
+          <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+          <path d="M7 23l-4-4 4-4"/>
+          <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+        </svg>
+        <span>${COPY.receipt.handoffInstruction}</span>
       </div>
     </div>
 
-    <div class="receipt-explanation-box">
-      <p>${COPY.receipt.explanation}</p>
-    </div>
-
-    <div class="receipt-handoff-banner">
-      <svg class="handoff-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M17 1l4 4-4 4"/>
-        <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
-        <path d="M7 23l-4-4 4-4"/>
-        <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
-      </svg>
-      <span>${COPY.receipt.handoffInstruction}</span>
-    </div>
-
-    <div class="action-bar" style="margin-top: 2rem;">
+    <div class="action-bar">
       <button id="btn-next-participant" class="btn btn-primary">${COPY.receipt.nextBtn}</button>
       <span class="action-microcopy">${COPY.receipt.microcopy}</span>
     </div>
@@ -371,7 +373,7 @@ function renderReceiptView() {
   document.getElementById('btn-next-participant').addEventListener('click', () => {
     selectedOptionId = null; // Clear individual choice for next participant
     uiState = 'voting';
-    announce('Nouvelle réponse prète.');
+    announce('Nouvelle réponse prête.');
     render();
     focusCardHeading();
   });

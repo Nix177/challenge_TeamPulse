@@ -25,7 +25,7 @@ export const COPY = Object.freeze({
     supportingText: 'Après validation, elle sera ajoutée au décompte de cette session.',
     infoBlockHeading: 'Ce qui apparaîtra dans les résultats',
     infoBlockBody: 'Le facilitateur verra uniquement combien de personnes ont choisi chaque réponse. Aucun nom ni choix individuel ne sera affiché.',
-    privacyLine: 'Rien n’est envoyé et toutes les réponses disparaissent lorsque la page est rechargée.',
+    privacyLine: 'Rien n’est envoyé sur Internet. Les réponses restent uniquement sur cet appareil et disparaissent au rechargement.',
     confirmBtn: 'Valider ma réponse',
     modifyBtn: 'Changer de réponse'
   },
@@ -33,10 +33,10 @@ export const COPY = Object.freeze({
     stepLabel: '3 sur 3 · Terminé',
     heading: 'C’est noté.',
     primaryBody: 'Ta réponse a bien été comptée.',
-    explanation: 'Le résultat final montrera uniquement la répartition du groupe. Ton choix individuel ne sera pas affiché.',
+    explanation: 'Le résultat final montrera uniquement la répartition du groupe. Ta réponse reste sur cet appareil et aucun choix individuel ne sera affiché.',
     handoffInstruction: 'Tu peux maintenant passer l’appareil à la personne suivante.',
-    nextBtn: 'Commencer une nouvelle réponse',
-    microcopy: 'Ton choix ne sera plus visible sur l’écran suivant.'
+    nextBtn: 'Passer à la personne suivante',
+    microcopy: 'L’écran suivant repartira d’un choix vierge.'
   },
   facilitatorEmpty: {
     heading: 'Aucune réponse pour le moment.',
