@@ -2,55 +2,44 @@
 
 > **Tagline**: “Prendre le pouls. Ouvrir la conversation.”
 
-Team Pulse est une application web statique accessible et éphémère, conçue pour les ateliers d'équipe synchrones se déroulant en présentiel autour d'un ordinateur ou d’une tablette partagée.
+Team Pulse est une application web statique et éphémère à architecture multi-appareils privée, conçue pour les ateliers d'équipe synchrones. Chaque participant répond depuis son propre smartphone ou ordinateur via un code de session court. Les choix individuels restent strictement anonymes et sont agrégés uniquement pour alimenter la discussion collective.
 
 ---
 
-## 💬 Parcours & Philosophie
+## 💬 Rôles & Architecture
 
-L'expérience accompagne le groupe à travers 3 étapes simples :
-`1 sur 3 · Choisir → 2 sur 3 · Vérifier → 3 sur 3 · Terminé`
+L'application prend en charge deux rôles distincts :
 
-- **Langage naturel** : Interface rédigée en français simple et direct, sans jargon ni majuscules agressives.
-- **Récépissé de validation** : Confirmation explicite avec comptage dynamique (`{total} réponses recueillies dans cette session`), animation neutre de point collectif et consigne de passage à la personne suivante.
-- **Visualisation dynamique des données** : Courbe SVG Bézier générée en temps réel à partir des pourcentages réels des participants (`src/visualisation.js`).
-- **Cartes conversationnelles** : Mise en valeur de la question d'ouverture pour la discussion collective.
+### 1. Rôle Participant
+- Rejoint une session via un code à 6 caractères (ex: `K7M4PQ`) ou un lien de partage (`?room=K7M4PQ`).
+- Transmet une seule réponse anonyme.
+- Obtient un récépissé d'enregistrement (*« Réponse enregistrée. Tu peux maintenant fermer cette page. »*).
+- Ne voit jamais les réponses individuelles ni les résultats agrégés.
 
----
-
-## 🔄 Parcours Utilisateur
-
-### 1. Mode Participant
-- **Question initiale** : *« Comment te sens-tu en arrivant aujourd’hui ? »*
-- **5 options canoniques (ordre exact)** :
-  1. `very-difficult` — **Très difficile** (*J’aurais besoin de soutien.*)
-  2. `difficult` — **Difficile** (*Quelque chose me freine.*)
-  3. `mixed` — **Mitigé** (*Il y a du bon et du moins bon.*)
-  4. `good` — **Bien** (*Je me sens plutôt bien.*)
-  5. `very-good` — **Très bien** (*J’arrive avec beaucoup d’énergie.*)
-- **Flux en 3 étapes** : Sélection d'une réponse → Vérification ("Valider ma réponse" ou "Changer de réponse") → Récépissé de confirmation ("C’est noté. Ta réponse a bien été comptée.") → "Commencer une nouvelle réponse" (remet à zéro le formulaire pour le participant suivant).
-
-### 2. Mode Facilitateur
-- Action dans l'en-tête : **« Voir les résultats »**
-- **Pré-révélation** : Affiche le nombre de réponses recueillies et propose *« Afficher la répartition »*.
-- **Répartition révélée** : Courbe SVG dynamique connectant les 5 nuances, statistiques agrégées, constat déterministe et question à discuter ensemble.
+### 2. Rôle Facilitateur
+- Crée une session temporaire (durée max par défaut : 12h).
+- Obtient un code de session (`K7M4PQ`) et un secret d'administration dans le fragment d'URL (`#admin=<secret>`).
+- Partage le code ou le lien participant (`?room=K7M4PQ`). Le lien participant **ne contient jamais** le secret d'administration.
+- Observe en temps réel le nombre total de réponses reçues (rafraîchi toutes les 5s).
+- Clôture les réponses et affiche la répartition agrégée du groupe et la question de discussion.
+- Supprime définitivement la session à la fin de l'atelier.
 
 ---
 
 ## 🔗 URLs Locales & Modes
 
-- **Mode Normal** : `http://localhost:4173/`
-- **Mode Démo** (`?demo=1`) : `http://localhost:4173/?demo=1` (affiche le badge "DÉMO" et permet de charger 16 réponses de démonstration).
-- **Mode Présentation** (`?present=1`) : `http://localhost:4173/?present=1` (affiche le panneau "Voir les choix de conception").
-- **Mode Combiné** : `http://localhost:4173/?demo=1&present=1`
+- **Mode Participant (Saisie du code)** : `http://localhost:4173/`
+- **Lien Participant Direct** : `http://localhost:4173/?room=K7M4PQ`
+- **Lien Dashboard Facilitateur** : `http://localhost:4173/?room=K7M4PQ#admin=<secret>`
+- **Mode Démo Local** (`?demo=1`) : `http://localhost:4173/?demo=1` (simule la création, le vote et la révélation sans connexion backend).
 
 ---
 
-## 🔒 Confidentialité & Sécurité
+## 🔒 Configuration Supabase & Sécurité
 
-- **In-Memory State** : Données conservées uniquement en mémoire JavaScript.
-- **Zéro Stockage & Zéro Réseau** : Aucun `localStorage`, `sessionStorage`, `cookies`, `IndexedDB`, `fetch`, `XMLHttpRequest`, ni `console.log`.
-- **Réinitialisation automatique** : La fermeture ou le rechargement de la page efface instantanément toutes les réponses.
+1. Exécuter le script SQL dans votre projet Supabase : [`supabase/schema.sql`](file:///e:/challenge%20huumyk/supabase/schema.sql).
+2. Mettre à jour `src/config.js` avec l'URL du projet et la clé publique `anon`.
+3. **Sécurité RLS & RPC** : Accès direct aux tables révoqué pour les utilisateurs anonymes. Toutes les opérations s'effectuent via des procédures stockées `SECURITY DEFINER`.
 
 ---
 
@@ -61,7 +50,7 @@ L'expérience accompagne le groupe à travers 3 étapes simples :
 python -m http.server 4173
 ```
 
-### Lancer la suite de tests unitaires
+### Lancer la suite de tests unitaires et de sécurité
 ```bash
 node --test
 ```

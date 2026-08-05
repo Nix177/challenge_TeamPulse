@@ -3,26 +3,32 @@
 Tagline: “Prendre le pouls. Ouvrir la conversation.”
 
 ## Product Overview
-Team Pulse is a warm, accessible static web prototype for synchronous team workshops on one shared device. Participants successively express how they arrive in the session. Results are revealed afterward only in aggregate to start a human conversation.
+Team Pulse is a private, multi-device web application for synchronous team workshops. Participants join a temporary session from their own smartphone or computer using a short room code. Individual choices remain strictly anonymous and are aggregated only for group conversation.
 
-The application follows a 3-step participant flow:
-`1 sur 3 · Choisir → 2 sur 3 · Vérifier → 3 sur 3 · Terminé`
+The application supports two distinct roles:
 
-It is NOT:
-- An HR assessment or performance evaluation tool
-- A mental health diagnostic tool
-- A surveillance system or engagement score
-- A persistent survey service
+### 1. Facilitator Role
+- Creates a temporary session (defaults to 12 hours max expiration).
+- Receives a generated 6-character room code (e.g. `K7M4PQ`).
+- Receives a high-entropy administration secret kept **only in the URL hash fragment** (`#admin=<secret>`).
+- Shares the room code or participant link (`?room=K7M4PQ`) with team members.
+- Sees the live total number of submitted responses (polled every ~5s).
+- Closes submissions when the group has finished responding.
+- Reveals the aggregate distribution curve and discussion question.
+- Deletes the session permanently when completed.
 
-## Visual System & Composition
-- **Warm Editorial Canvas**: Canvas `#f3efe7`, Surface `#fffdf9`, Ink `#17231e`, Accent `#126a5a`.
-- **Responsive 5-Choice Scale**:
-  - **Desktop (>= 1000px)**: 5 choices on one connected horizontal continuum with subtle rhythm line.
-  - **Tablet (640–999px)**: Compact 5-point scale with active description box below.
-  - **Mobile (< 640px)**: Vertical list showing label and supporting text together.
-- **Submission Receipt**: Concrete receipt screen displaying total collected count, neutral point-joining animation, handoff instruction, and single primary action.
-- **Data-Driven Visualization**: Smooth cubic Bézier SVG curve generated dynamically from actual participant percentages (`src/visualisation.js`).
-- **Pure Ephemeral Memory**: Zero web storage, zero network APIs, zero tracking.
+### 2. Participant Role
+- Opens Team Pulse on their own device and enters the room code or follows a participant link (`?room=K7M4PQ`).
+- Submits exactly one response.
+- Receives a clear receipt ("Réponse enregistrée. Elle a bien été ajoutée à la session K7M4PQ...") and closes the page.
+- Never sees previous participant responses or individual choices.
+- Cannot view aggregate results or facilitator controls.
+
+## Security & Access Model
+- **Participant Room Code**: 6-character uppercase string of unambiguous alphanumeric characters (`23456789ABCDEFGHJKMNPQRSTUVWXYZ`). Allows joining and submitting 1 vote.
+- **Facilitator Secret**: Web Crypto random 32-character hex secret stored ONLY in URL fragment (`#admin=<secret>`). Never transmitted in plain text to the server. The frontend computes its SHA-256 hash (`admin_secret_hash`) for database RPC authentication.
+- **Participant Link Protection**: Participant share links contain only the room code (`?room=K7M4PQ`) and **never** include the admin secret.
+- **Non-Identifying Participant Token**: Web Crypto random token stored strictly in `sessionStorage` (scoped to room). Sends SHA-256 hash to backend (`submit_room_vote`) to prevent accidental duplicate submission in the same browser session.
 
 ## Canonical Options (Exact Order)
 1. `very-difficult` — Label: “Très difficile” — Text: “J’aurais besoin de soutien.”
@@ -37,23 +43,10 @@ It is NOT:
 
 Rules (in exact priority order):
 1. **Rule 1 — support**: `negativeShare >= 0.5`
-   - Observation: “Une part importante du groupe rencontre des difficultés.”
-   - Prompt: “Qu’est-ce qui pèse le plus aujourd’hui, et quel petit soutien serait immédiatement utile ?”
 2. **Rule 2 — contrast**: `negativeShare >= 0.25 && positiveShare >= 0.25`
-   - Observation: “Les ressentis sont particulièrement contrastés.”
-   - Prompt: “Qu’est-ce qui pourrait expliquer que les personnes vivent cette situation différemment ?”
 3. **Rule 3 — preserve**: `positiveShare >= 0.55`
-   - Observation: “Le ressenti général est plutôt positif.”
-   - Prompt: “Qu’est-ce qui fonctionne bien actuellement et que le groupe devrait préserver ?”
 4. **Rule 4 — small improvement**: Fallback
-   - Observation: “Aucun ressenti ne domine clairement.”
-   - Prompt: “Quel petit changement concret pourrait améliorer la prochaine session ?”
 
 ## URL Modes
-- `?demo=1`: Shows "DÉMO" badge and demo data button ("Charger l’exemple"). Demo counts: Very difficult: 1, Difficult: 2, Mixed: 4, Good: 6, Very good: 3 (Total = 16).
-- `?present=1`: Shows expandable panel "Voir les choix de conception".
-- `?demo=1&present=1`: Combines both.
-- Normal mode: neither badge nor presentation panel exists.
-
-## Persistent Privacy Text
-“Aucun nom n’est demandé. Les réponses ne quittent pas cette page et disparaissent lorsqu’elle est rechargée.”
+- Normal mode: Multi-device sessions via Supabase backend.
+- `?demo=1`: Local demo mode simulating session creation, participant submission, and aggregate reveal without contacting any backend.
