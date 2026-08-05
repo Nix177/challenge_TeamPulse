@@ -1,0 +1,38 @@
+name: CI Automated Checks
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Syntax & Unit Test Suite
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+
+      - name: Run JavaScript Syntax Checks
+        run: |
+          node --check src/options.js
+          node --check src/model.js
+          node --check src/insight.js
+          node --check src/copy.js
+          node --check src/visualisation.js
+          node --check src/app.js
+
+      - name: Run Node Unit & Privacy Tests
+        run: node --test
