@@ -1,21 +1,16 @@
-# Living Pulse — Design Direction Document
+# Living Pulse — Refined Design Direction Document
 
-## 1. Current Visual Weaknesses
-- **Generic SaaS Aesthetic**: Standard white floating card on a grey background with standard royal blue buttons.
-- **Form-in-a-Box Feel**: Narrow 800px layout that feels like a generic web survey rather than an intentional workshop tool.
-- **Static Visualization**: Fixed SVG pulse line that did not reflect actual percentage data.
-- **Abrupt Transition**: Sparse thank-you screen that felt like an abrupt end rather than a calm transition between participants.
+## 1. Product Refinements
+The **Living Pulse** redesign has been refined for maximum clarity, natural French copywriting, and concrete participant handoff:
+- **Plain-Language Standard**: Replaced all abstract/jargon UI labels (`EXPRESSION INDIVIDUELLE`, `RÉPONSE AJOUTÉE`, `RÉSULTATS COLLECTIFS`, `Session éphémère`, `Espace facilitateur`) with conversational, natural French (`1 sur 3 · Choisir`, `Comment te sens-tu en arrivant aujourd’hui ?`, `Réponses non conservées`, `Voir les résultats`).
+- **Concrete Submission Receipt**: Replaced decorative thank-you screen with a clear receipt displaying total collected count, neutral point-joining animation, explicit handoff instruction, and single primary action.
+- **3-Breakpoint Option Continuum**:
+  - **Desktop (>= 1000px)**: 5 connected tiles on 1 horizontal scale.
+  - **Tablet (640–999px)**: 5-point compact scale with single active description region below.
+  - **Mobile (< 640px)**: Vertical list showing label and supporting text together.
+- **Data-Driven Visualization**: Smooth cubic Bézier SVG curve generated dynamically from actual percentages (`src/visualisation.js`).
 
-## 2. The Living Pulse Concept
-The redesign transforms the experience into **Living Pulse**, embodying a progression from:
-`individual expression → collective perception → human conversation`
-
-It feels:
-- **Warm & Editorial**: Natural warm canvas (`#f3efe7`), organic tones, rich typography.
-- **Contemporary & Calm**: Subtle contrast, restrained shadows, generous breathing room.
-- **Credible & Purposeful**: High-touch digital product suitable for adults in professional transition.
-
-## 3. Palette & Typography System
+## 2. Palette & Tokens
 ```css
 --canvas: #f3efe7;
 --canvas-deep: #e9e2d7;
@@ -23,7 +18,7 @@ It feels:
 --surface-raised: #ffffff;
 --ink: #17231e;
 --ink-soft: #59655f;
---ink-faint: #7b8580;
+--ink-faint: #54615b; /* > 4.5:1 WCAG AA contrast */
 --line: #d9d4ca;
 
 --accent: #126a5a;
@@ -38,25 +33,12 @@ It feels:
 
 --danger: #a63f3f;
 ```
-- **Typography Stack**: High-quality system font stack (`system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`).
-- **Hierarchy**: Small uppercase eyebrows (`letter-spacing: 0.08em`), strong main headings, soft supporting text.
 
-## 4. Page Composition & Responsive Strategy
-- **Desktop (1080–1180px)**: Expanded max-width layout. The 5 canonical options are displayed as 5 horizontally aligned, connected tiles forming a visual emotional continuum.
-- **Tablet / Intermediate (768–1024px)**: Adaptive grid layout with ample spacing.
-- **Mobile (320–480px)**: Single column vertical layout with min 48–56px touch targets.
-
-## 5. Interaction, Motion & Visualization Principles
-- **Data-Driven Visualization**: Generates a smooth SVG cubic Bézier curve (`generatePulseSvgPath`) mapped directly to the 5 actual percentages.
-- **Restrained Motion**: Reveal animation runs in <700ms. Respects `prefers-reduced-motion`.
-- **Keyboard & Screen Reader Accessibility**: Native radio buttons, explicit focus management, ARIA live region (`aria-live="polite"`), and non-color-only text indicators.
-
-## 6. Exact Interface Copy
-- **Header**: "Team Pulse", "Prendre le pouls. Ouvrir la conversation.", "Session éphémère", "Espace facilitateur" / "Retour au vote".
-- **Voting**: Eyebrow "EXPRESSION INDIVIDUELLE", Heading "Comment arrives-tu dans cette session ?", Button "Continuer", Microcopy "Ta réponse ne sera associée à aucun nom."
-- **Confirmation**: Eyebrow "CONFIRMATION", Heading "Est-ce bien ce que tu veux partager ?", Buttons "Ajouter ma réponse" / "Modifier".
-- **Thank-you**: Eyebrow "RÉPONSE AJOUTÉE", Heading "Merci d’avoir pris le temps de répondre.", Button "Passer à la personne suivante".
-- **Pre-Reveal**: Eyebrow "RÉSULTATS COLLECTIFS", Heading "{total} réponses sont prêtes à être révélées.", Button "Révéler le pouls du groupe".
-- **Revealed Results**: Eyebrow "LE POULS DU GROUPE", Heading "Voici ce que le groupe a partagé.", Sections "La répartition", "À OBSERVER", "POUR OUVRIR LA CONVERSATION", Buttons "Revenir au vote" / "Réinitialiser la session".
-- **Reset**: Heading "Effacer toutes les réponses ?", Buttons "Effacer les réponses" / "Conserver la session".
-- **Privacy Notice**: "Aucune réponse n’est enregistrée ni envoyée. Les résultats disparaissent lorsque la page est rechargée."
+## 3. Exact Interface Copy (Centralized in `src/copy.js`)
+- **Brand**: Title `Team Pulse`, Tagline `Prendre le pouls. Ouvrir la conversation.`, Header status `Réponses non conservées`, Facilitator action `Voir les résultats`.
+- **Voting**: `1 sur 3 · Choisir`, `Comment te sens-tu en arrivant aujourd’hui ?`, `Continuer`, `Aucun nom n’est demandé.`
+- **Confirmation**: `2 sur 3 · Vérifier`, `Tu confirmes cette réponse ?`, `Valider ma réponse`, `Changer de réponse`.
+- **Receipt**: `3 sur 3 · Terminé`, `C’est noté.`, `Ta réponse a bien été comptée.`, `1 réponse recueillie dans cette session` / `{total} réponses recueillies dans cette session`, `Tu peux maintenant passer l’appareil à la personne suivante.`, `Commencer une nouvelle réponse`.
+- **Pre-Reveal**: `1 réponse a été recueillie.` / `{total} réponses ont été recueillies.`, `Afficher la répartition`.
+- **Revealed**: `Répartition du groupe`, `Les réponses`, `Ce qu’on peut observer`, `Question à discuter ensemble`.
+- **Persistent Privacy**: `Aucun nom n’est demandé. Les réponses ne quittent pas cette page et disparaissent lorsqu’elle est rechargée.`

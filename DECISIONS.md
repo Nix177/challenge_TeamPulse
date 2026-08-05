@@ -1,17 +1,20 @@
-# Architectural & Design Decisions — Team Pulse (Living Pulse)
+# Architectural & Design Decisions — Team Pulse
 
-## Decision 1: Living Pulse Visual System
-- **Rationale**: Replaces generic SaaS blue-grey floating cards with a warm, editorial canvas (`#f3efe7`), organic tone accents (`#b65345` through `#1d766c`), and strong typographic hierarchy.
-- **Trade-off**: Requires custom CSS variable design tokens and careful contrast checks to ensure WCAG AA compliance.
+## Decision 1: Submission Receipt & Participant Handoff
+- **Rationale**: Replaces decorative thank-you screen with a concrete receipt state displaying total collected count (`{total} réponses recueillies dans cette session`), neutral point-joining animation (350–550ms), handoff instruction, and single primary action.
+- **Privacy Assurance**: The individual choice is never displayed after validation, never uses chosen option colors on receipt, and never leaks choice to the next participant.
 
-## Decision 2: Data-Driven SVG Curve Generation (`src/visualisation.js`)
-- **Rationale**: Replaces static decorative pulse SVGs with a dynamic cubic Bézier curve calculated directly from the 5 participant percentages.
-- **Trade-off**: Requires dedicated unit tests (`tests/visualisation.test.mjs`) to verify mathematical correctness, zero-value handling, and path string validity without NaN values.
+## Decision 2: 3-Breakpoint Option Continuum
+- **Rationale**: Replaces 5 narrow full-text cards on tablet screens with 3 responsive strategies:
+  - **Desktop (>= 1000px)**: 5 connected tiles on 1 horizontal scale.
+  - **Tablet (640–999px)**: 5-point compact scale with single active description region below.
+  - **Mobile (< 640px)**: Vertical list showing label and supporting text together.
 
-## Decision 3: Centralized Copy Module (`src/copy.js`)
-- **Rationale**: Centralizes all user-facing French text to ensure exact wording compliance and zero text duplication across views.
-- **Trade-off**: Adds a small internal module while significantly improving maintainability.
+## Decision 3: Plain-Language Copy & Prohibited Jargon Filter
+- **Rationale**: Centralizes natural French copy in `src/copy.js`. Eliminates all-uppercase decorative headings (`EXPRESSION INDIVIDUELLE`, `RÉPONSE AJOUTÉE`, `RÉSULTATS COLLECTIFS`) and product-design jargon in favor of plain conversational French.
 
-## Decision 4: Pure Ephemeral In-Memory State
-- **Rationale**: Enforces absolute privacy bounds. No `localStorage`, `sessionStorage`, `cookies`, `IndexedDB`, `fetch`, or `XHR` are used.
-- **Trade-off**: Page reloads clear all data, which strictly aligns with the ephemeral workshop design.
+## Decision 4: Data-Driven SVG Curve Generation (`src/visualisation.js`)
+- **Rationale**: Cubic Bézier curve calculated dynamically from the 5 participant percentages. Tested in `tests/visualisation.test.mjs`.
+
+## Decision 5: Ephemeral Memory State & Privacy Bounds
+- **Rationale**: Pure JS memory state. Zero web storage, zero network APIs, zero tracking. Page reload resets all workshop data.

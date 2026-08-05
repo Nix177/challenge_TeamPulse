@@ -1,19 +1,19 @@
-# Team Pulse (Living Pulse)
+# Team Pulse
 
 > **Tagline**: “Prendre le pouls. Ouvrir la conversation.”
 
-Team Pulse est une application web statique au design **Living Pulse**, conçue pour les ateliers d'équipe synchrones se déroulant en présentiel autour d'un ordinateur ou d'une tablette partagée.
+Team Pulse est une application web statique accessible et éphémère, conçue pour les ateliers d'équipe synchrones se déroulant en présentiel autour d'un ordinateur ou d’une tablette partagée.
 
 ---
 
-## 🎨 Concept & Philosophie Living Pulse
+## 💬 Parcours & Philosophie
 
-L'application accompagne une progression bienveillante :
-`expression individuelle → perception collective → conversation humaine`
+L'expérience accompagne le groupe à travers 3 étapes simples :
+`1 sur 3 · Choisir → 2 sur 3 · Vérifier → 3 sur 3 · Terminé`
 
-Elle propose un design chaleureux et éditorial :
-- **Palette naturelle** : Fond canvas chaud (`#f3efe7`), cartes surface (`#fffdf9`), encres sombres (`#17231e`), accents de tons organiques (`#b65345` à `#1d766c`).
-- **Visualisation dynamique des données** : Courbe SVG Bézier générée en temps réel à partir des pourcentages des participants (`src/visualisation.js`).
+- **Langage naturel** : Interface rédigée en français simple et direct, sans jargon ni majuscules agressives.
+- **Récépissé de validation** : Confirmation explicite avec comptage dynamique (`{total} réponses recueillies dans cette session`), animation neutre de point collectif et consigne de passage à la personne suivante.
+- **Visualisation dynamique des données** : Courbe SVG Bézier générée en temps réel à partir des pourcentages réels des participants (`src/visualisation.js`).
 - **Cartes conversationnelles** : Mise en valeur de la question d'ouverture pour la discussion collective.
 
 ---
@@ -21,19 +21,19 @@ Elle propose un design chaleureux et éditorial :
 ## 🔄 Parcours Utilisateur
 
 ### 1. Mode Participant
-- **Question initiale** : *« Comment arrives-tu dans cette session ? »*
+- **Question initiale** : *« Comment te sens-tu en arrivant aujourd’hui ? »*
 - **5 options canoniques (ordre exact)** :
-  1. `very-difficult` — **Très difficile** (*J’aurais besoin de soutien*)
-  2. `difficult` — **Difficile** (*Quelque chose me freine*)
-  3. `mixed` — **Mitigé** (*Des éléments positifs et difficiles*)
-  4. `good` — **Bien** (*Je peux avancer sereinement*)
-  5. `very-good` — **Très bien** (*J’arrive avec beaucoup d’énergie*)
-- **Flux en 3 étapes** : Sélection d'une tuile → Confirmation ("Ajouter ma réponse" ou "Modifier") → Écran de transition de remerciement → "Passer à la personne suivante" (remet à zéro le formulaire pour le participant suivant).
+  1. `very-difficult` — **Très difficile** (*J’aurais besoin de soutien.*)
+  2. `difficult` — **Difficile** (*Quelque chose me freine.*)
+  3. `mixed` — **Mitigé** (*Il y a du bon et du moins bon.*)
+  4. `good` — **Bien** (*Je me sens plutôt bien.*)
+  5. `very-good` — **Très bien** (*J’arrive avec beaucoup d’énergie.*)
+- **Flux en 3 étapes** : Sélection d'une réponse → Vérification ("Valider ma réponse" ou "Changer de réponse") → Récépissé de confirmation ("C’est noté. Ta réponse a bien été comptée.") → "Commencer une nouvelle réponse" (remet à zéro le formulaire pour le participant suivant).
 
 ### 2. Mode Facilitateur
-- Action dans l'en-tête : **« Espace facilitateur »**
-- **Pré-révélation** : Affiche le nombre de réponses prêtes et propose *« Révéler le pouls du groupe »*.
-- **Pouls révélé** : Courbe SVG dynamique connectant les 5 nuances, statistiques agrégées, constat déterministe et carte de conversation.
+- Action dans l'en-tête : **« Voir les résultats »**
+- **Pré-révélation** : Affiche le nombre de réponses recueillies et propose *« Afficher la répartition »*.
+- **Répartition révélée** : Courbe SVG dynamique connectant les 5 nuances, statistiques agrégées, constat déterministe et question à discuter ensemble.
 
 ---
 
@@ -41,7 +41,7 @@ Elle propose un design chaleureux et éditorial :
 
 - **Mode Normal** : `http://localhost:4173/`
 - **Mode Démo** (`?demo=1`) : `http://localhost:4173/?demo=1` (affiche le badge "DÉMO" et permet de charger 16 réponses de démonstration).
-- **Mode Présentation** (`?present=1`) : `http://localhost:4173/?present=1` (affiche le panneau "Derrière Team Pulse").
+- **Mode Présentation** (`?present=1`) : `http://localhost:4173/?present=1` (affiche le panneau "Voir les choix de conception").
 - **Mode Combiné** : `http://localhost:4173/?demo=1&present=1`
 
 ---
