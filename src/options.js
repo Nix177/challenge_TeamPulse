@@ -5,35 +5,35 @@ export const CANONICAL_OPTIONS = Object.freeze([
   {
     id: 'very-difficult',
     label: 'Très difficile',
-    supportingText: 'J’aurais besoin de soutien',
+    supportingText: 'J’aurais besoin de soutien.',
     colorVar: 'var(--tone-1)',
     colorHex: '#b65345'
   },
   {
     id: 'difficult',
     label: 'Difficile',
-    supportingText: 'Quelque chose me freine',
+    supportingText: 'Quelque chose me freine.',
     colorVar: 'var(--tone-2)',
     colorHex: '#d0784d'
   },
   {
     id: 'mixed',
     label: 'Mitigé',
-    supportingText: 'Des éléments positifs et difficiles',
+    supportingText: 'Il y a du bon et du moins bon.',
     colorVar: 'var(--tone-3)',
     colorHex: '#bd9b3f'
   },
   {
     id: 'good',
     label: 'Bien',
-    supportingText: 'Je peux avancer sereinement',
+    supportingText: 'Je me sens plutôt bien.',
     colorVar: 'var(--tone-4)',
     colorHex: '#4f9270'
   },
   {
     id: 'very-good',
     label: 'Très bien',
-    supportingText: 'J’arrive avec beaucoup d’énergie',
+    supportingText: 'J’arrive avec beaucoup d’énergie.',
     colorVar: 'var(--tone-5)',
     colorHex: '#1d766c'
   }

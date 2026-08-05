@@ -7,7 +7,13 @@ import {
   createDemoCounts
 } from './model.js';
 import { calculateInsight } from './insight.js';
-import { COPY } from './copy.js';
+import {
+  COPY,
+  formatCollectedCount,
+  formatSupportingCount,
+  formatPreRevealHeading,
+  formatSubmissionLiveAnnounce
+} from './copy.js';
 import { generatePulseDataVisualization } from './visualisation.js';
 
 /* Abstract SVG symbols for canonical options */
@@ -117,24 +123,24 @@ function renderHeaderFacilitatorButton() {
   if (isFacilitatorView) {
     headerFacilitatorContainerEl.innerHTML = `
       <button id="btn-header-nav" class="btn btn-secondary btn-sm">
-        ${COPY.brand.backToVoting}
+        ${COPY.brand.returnAction}
       </button>
     `;
     document.getElementById('btn-header-nav').addEventListener('click', () => {
       uiState = 'voting';
-      announce('Retour au mode de vote participant.');
+      announce('Retour au questionnaire.');
       render();
       focusCardHeading();
     });
   } else {
     headerFacilitatorContainerEl.innerHTML = `
       <button id="btn-header-nav" class="btn btn-secondary btn-sm">
-        ${COPY.brand.facilitatorAccess}
+        ${COPY.brand.facilitatorAction}
       </button>
     `;
     document.getElementById('btn-header-nav').addEventListener('click', () => {
       uiState = 'results-intro';
-      announce('Accès à l’espace facilitateur.');
+      announce('Accès aux résultats.');
       render();
       focusCardHeading();
     });
@@ -142,7 +148,7 @@ function renderHeaderFacilitatorButton() {
 }
 
 /**
- * Main View Card Dispatcher
+ * Main View Dispatcher
  */
 function renderViewCard() {
   switch (uiState) {
@@ -153,7 +159,7 @@ function renderViewCard() {
       renderConfirmingView();
       break;
     case 'thanked':
-      renderThankedView();
+      renderReceiptView();
       break;
     case 'results-intro':
       renderResultsIntroView();
@@ -173,6 +179,9 @@ function renderViewCard() {
  * View 1: Participant Voting Screen
  */
 function renderVotingView() {
+  const selectedOpt = CANONICAL_OPTIONS.find(o => o.id === selectedOptionId);
+  const selectedDesc = selectedOpt ? selectedOpt.supportingText : COPY.voting.tabletDefaultDesc;
+
   const optionsMarkup = CANONICAL_OPTIONS.map(opt => {
     const isChecked = selectedOptionId === opt.id;
     return `
@@ -200,12 +209,17 @@ function renderVotingView() {
     <form id="voting-form">
       <fieldset class="options-fieldset">
         <legend class="sr-only">${COPY.voting.heading}</legend>
-        <span class="eyebrow">${COPY.voting.eyebrow}</span>
+        <span class="step-badge">${COPY.voting.stepLabel}</span>
         <h2 class="main-heading">${COPY.voting.heading}</h2>
-        <p class="subheading">${COPY.voting.subheading}</p>
+        <p class="subheading">${COPY.voting.supportingText}</p>
 
         <div class="options-grid">
           ${optionsMarkup}
+        </div>
+
+        <!-- Tablet Description Region -->
+        <div class="tablet-desc-region" id="tablet-desc-region" aria-live="polite">
+          <p class="tablet-desc-text ${!selectedOptionId ? 'tablet-desc-placeholder' : ''}">${selectedDesc}</p>
         </div>
       </fieldset>
 
@@ -220,11 +234,17 @@ function renderVotingView() {
 
   const form = document.getElementById('voting-form');
   const continueBtn = document.getElementById('btn-continue');
+  const tabletDescText = document.getElementById('tablet-desc-region')?.querySelector('p');
 
   form.querySelectorAll('input[name="pulse-option"]').forEach(radio => {
     radio.addEventListener('change', (e) => {
       selectedOptionId = e.target.value;
       continueBtn.disabled = false;
+      const opt = CANONICAL_OPTIONS.find(o => o.id === selectedOptionId);
+      if (tabletDescText && opt) {
+        tabletDescText.textContent = opt.supportingText;
+        tabletDescText.classList.remove('tablet-desc-placeholder');
+      }
     });
   });
 
@@ -232,7 +252,7 @@ function renderVotingView() {
     e.preventDefault();
     if (!selectedOptionId) return;
     uiState = 'confirming';
-    announce('Étape de confirmation du choix.');
+    announce('Étape de vérification.');
     render();
     focusCardHeading();
   });
@@ -250,16 +270,24 @@ function renderConfirmingView() {
   }
 
   viewCardEl.innerHTML = `
-    <span class="eyebrow">${COPY.confirmation.eyebrow}</span>
+    <span class="step-badge">${COPY.confirmation.stepLabel}</span>
     <h2 class="main-heading">${COPY.confirmation.heading}</h2>
-    <p class="subheading">${COPY.confirmation.subheading}</p>
+    <p class="subheading">${COPY.confirmation.supportingText}</p>
 
+    <!-- Selected response summary marker -->
     <div class="confirmation-summary-card" style="--summary-accent: ${selectedOpt.colorVar};">
       ${OPTION_SYMBOLS[selectedOpt.id]}
       <div>
         <h3 class="option-title confirmation-title">${selectedOpt.label}</h3>
         <p class="option-desc confirmation-desc">${selectedOpt.supportingText}</p>
       </div>
+    </div>
+
+    <!-- Calm explanation block -->
+    <div class="info-explanation-block">
+      <h4 class="info-explanation-title">${COPY.confirmation.infoBlockHeading}</h4>
+      <p class="info-explanation-body">${COPY.confirmation.infoBlockBody}</p>
+      <p class="info-explanation-privacy">${COPY.confirmation.privacyLine}</p>
     </div>
 
     <div class="action-bar">
@@ -270,7 +298,7 @@ function renderConfirmingView() {
 
   document.getElementById('btn-modify-choice').addEventListener('click', () => {
     uiState = 'voting';
-    announce('Retour à la sélection.');
+    announce('Retour au choix.');
     render();
     focusCardHeading();
   });
@@ -281,8 +309,9 @@ function renderConfirmingView() {
 
     try {
       currentCounts = addVote(currentCounts, selectedOptionId);
+      const newTotal = getTotalVotes(currentCounts);
       uiState = 'thanked';
-      announce('Réponse ajoutée. Merci.');
+      announce(formatSubmissionLiveAnnounce(newTotal));
       render();
       focusCardHeading();
     } finally {
@@ -292,34 +321,57 @@ function renderConfirmingView() {
 }
 
 /**
- * View 3: Thank-You Screen
+ * View 3: Submission Receipt Screen
  */
-function renderThankedView() {
-  viewCardEl.innerHTML = `
-    <span class="eyebrow">${COPY.thankYou.eyebrow}</span>
-    <h2 class="main-heading">${COPY.thankYou.heading}</h2>
-    <p class="subheading">${COPY.thankYou.body}</p>
+function renderReceiptView() {
+  const total = getTotalVotes(currentCounts);
+  const countText = formatCollectedCount(total);
 
-    <div class="thankyou-cluster-container" aria-hidden="true">
-      <div class="thankyou-pulse-dots">
-        <span class="pulse-dot"></span>
-        <span class="pulse-dot"></span>
-        <span class="pulse-dot"></span>
-        <span class="pulse-dot"></span>
-        <span class="pulse-dot"></span>
+  viewCardEl.innerHTML = `
+    <span class="step-badge">${COPY.receipt.stepLabel}</span>
+    <h2 class="main-heading">${COPY.receipt.heading}</h2>
+    <p class="receipt-primary-body">${COPY.receipt.primaryBody}</p>
+
+    <!-- Prominent Dynamic Response Count Numeric Element -->
+    <div class="receipt-count-banner">
+      <span class="receipt-count-number">${total}</span>
+      <span class="receipt-count-label">${countText}</span>
+    </div>
+
+    <!-- Neutral Point-Joining Visual Animation -->
+    <div class="receipt-neutral-animation" aria-hidden="true">
+      <div class="receipt-dots-cluster">
+        <span class="neutral-dot existing-dot"></span>
+        <span class="neutral-dot existing-dot"></span>
+        <span class="neutral-dot existing-dot"></span>
+        <span class="neutral-dot joining-dot"></span>
       </div>
     </div>
 
-    <div class="action-bar">
-      <button id="btn-next-participant" class="btn btn-primary">${COPY.thankYou.nextBtn}</button>
-      <span class="action-microcopy">${COPY.thankYou.microcopy}</span>
+    <div class="receipt-explanation-box">
+      <p>${COPY.receipt.explanation}</p>
+    </div>
+
+    <div class="receipt-handoff-banner">
+      <svg class="handoff-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M17 1l4 4-4 4"/>
+        <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+        <path d="M7 23l-4-4 4-4"/>
+        <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+      </svg>
+      <span>${COPY.receipt.handoffInstruction}</span>
+    </div>
+
+    <div class="action-bar" style="margin-top: 2rem;">
+      <button id="btn-next-participant" class="btn btn-primary">${COPY.receipt.nextBtn}</button>
+      <span class="action-microcopy">${COPY.receipt.microcopy}</span>
     </div>
   `;
 
   document.getElementById('btn-next-participant').addEventListener('click', () => {
-    selectedOptionId = null; // Reset radio selection for next participant
+    selectedOptionId = null; // Clear individual choice for next participant
     uiState = 'voting';
-    announce('Prêt pour la personne suivante.');
+    announce('Nouvelle réponse prète.');
     render();
     focusCardHeading();
   });
@@ -333,7 +385,6 @@ function renderResultsIntroView() {
 
   if (total === 0) {
     viewCardEl.innerHTML = `
-      <span class="eyebrow">${COPY.facilitatorEmpty.eyebrow}</span>
       <h2 class="main-heading">${COPY.facilitatorEmpty.heading}</h2>
       <p class="subheading">${COPY.facilitatorEmpty.body}</p>
 
@@ -344,19 +395,16 @@ function renderResultsIntroView() {
 
     document.getElementById('btn-back-voting').addEventListener('click', () => {
       uiState = 'voting';
-      announce('Retour au vote.');
+      announce('Retour au questionnaire.');
       render();
       focusCardHeading();
     });
     return;
   }
 
-  const headingText = total === 1 
-    ? '1 réponse est prête à être révélée.'
-    : `${total} réponses sont prêtes à être révélées.`;
+  const headingText = formatPreRevealHeading(total);
 
   viewCardEl.innerHTML = `
-    <span class="eyebrow">${COPY.facilitatorPreReveal.eyebrow}</span>
     <h2 class="main-heading">${headingText}</h2>
     <p class="subheading">${COPY.facilitatorPreReveal.body}</p>
 
@@ -374,14 +422,14 @@ function renderResultsIntroView() {
 
   document.getElementById('btn-reveal-pulse').addEventListener('click', () => {
     uiState = 'results-revealed';
-    announce('Révélation des résultats du pouls.');
+    announce('Répartition affichée.');
     render();
     focusCardHeading();
   });
 
   document.getElementById('btn-back-voting').addEventListener('click', () => {
     uiState = 'voting';
-    announce('Retour au vote.');
+    announce('Retour au questionnaire.');
     render();
     focusCardHeading();
   });
@@ -396,16 +444,16 @@ function renderResultsRevealedView() {
   const insight = calculateInsight(currentCounts);
   const vis = generatePulseDataVisualization(percentages);
 
-  const totalLineText = total === 1 ? '1 réponse · session en cours' : `${total} réponses · session en cours`;
+  const totalLineText = formatSupportingCount(total);
 
-  // Render SVG Node circles over path
+  // SVG Nodes
   const nodesSvgMarkup = vis.points.map((pt, idx) => {
     const opt = CANONICAL_OPTIONS[idx];
     return `<circle class="pulse-node-circle" cx="${pt.x}" cy="${pt.y}" fill="${opt.colorHex}" />`;
   }).join('');
 
-  // Render Distribution Columns
-  const distributionColsMarkup = CANONICAL_OPTIONS.map((opt, idx) => {
+  // Distribution Columns
+  const distributionColsMarkup = CANONICAL_OPTIONS.map(opt => {
     const count = Number(currentCounts[opt.id]) || 0;
     const pct = percentages[opt.id] || 0;
     return `
@@ -424,12 +472,11 @@ function renderResultsRevealedView() {
   }).join('');
 
   viewCardEl.innerHTML = `
-    <span class="eyebrow">${COPY.facilitatorRevealed.eyebrow}</span>
     <h2 class="main-heading">${COPY.facilitatorRevealed.heading}</h2>
     <div class="results-total-line">${totalLineText}</div>
 
-    <!-- Data-driven visualization section -->
-    <section class="pulse-visualization-wrapper" aria-label="Visualisation de la répartition">
+    <!-- Visualization Region -->
+    <div class="pulse-visualization-wrapper" aria-label="Visualisation de la répartition">
       <h3 class="section-title u-mb-0">${COPY.facilitatorRevealed.distributionTitle}</h3>
       
       <div class="pulse-svg-container" aria-hidden="true">
@@ -442,22 +489,20 @@ function renderResultsRevealedView() {
       <div class="distribution-columns">
         ${distributionColsMarkup}
       </div>
-    </section>
+    </div>
 
-    <!-- Observation section -->
-    <section class="observation-card">
-      <span class="eyebrow">${COPY.facilitatorRevealed.observationEyebrow}</span>
+    <!-- Observation Region -->
+    <div class="observation-card">
       <h3 class="section-title">${COPY.facilitatorRevealed.observationHeading}</h3>
       <p class="observation-text">${insight.observation || insight.emptyMessage}</p>
-    </section>
+    </div>
 
-    <!-- Conversation section -->
-    <section class="conversation-card">
-      <span class="eyebrow">${COPY.facilitatorRevealed.conversationEyebrow}</span>
+    <!-- Conversation Question (Final Visual Destination) -->
+    <div class="conversation-card">
       <h3 class="section-title">${COPY.facilitatorRevealed.conversationHeading}</h3>
       <p class="conversation-prompt-text">${insight.prompt || ''}</p>
       <p class="conversation-instruction">${COPY.facilitatorRevealed.conversationInstruction}</p>
-    </section>
+    </div>
 
     <p class="results-disclaimer">${COPY.facilitatorRevealed.disclaimer}</p>
 
@@ -469,14 +514,14 @@ function renderResultsRevealedView() {
 
   document.getElementById('btn-back-voting').addEventListener('click', () => {
     uiState = 'voting';
-    announce('Retour au vote.');
+    announce('Retour au questionnaire.');
     render();
     focusCardHeading();
   });
 
   document.getElementById('btn-init-reset').addEventListener('click', () => {
     uiState = 'reset-confirmation';
-    announce('Demande de réinitialisation.');
+    announce('Demande d’effacement.');
     render();
     focusCardHeading();
   });
@@ -500,7 +545,7 @@ function renderResetConfirmationView() {
 
   document.getElementById('btn-cancel-reset').addEventListener('click', () => {
     uiState = 'results-revealed';
-    announce('Réinitialisation annulée.');
+    announce('Effacement annulé.');
     render();
     focusCardHeading();
   });
@@ -509,20 +554,20 @@ function renderResetConfirmationView() {
     currentCounts = createEmptyCounts();
     selectedOptionId = null;
     uiState = 'voting';
-    announce('Session réinitialisée.');
+    announce('Session effacée.');
     render();
     focusCardHeading();
   });
 }
 
 /**
- * Global Render Engine
+ * Global Render Loop
  */
 function render() {
   renderHeaderFacilitatorButton();
   renderViewCard();
 }
 
-// Kickoff
+// Initial Kickoff
 initPanels();
 render();
