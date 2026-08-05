@@ -1,6 +1,6 @@
 # Shared Supabase Project Session Architecture — Team Pulse
 
-This document specifies the shared Supabase project isolation, database security model, and API client architecture for **Team Pulse**.
+This document specifies the shared Supabase project isolation, database security model, active cron job status, and API client architecture for **Team Pulse**.
 
 ---
 
@@ -28,25 +28,22 @@ Team Pulse operates inside an existing, shared Supabase project without interfer
 
 ---
 
-## 2. Shared Project Database Namespace & Ownership Markers
+## 2. Active Shared Supabase Integration Status
 
-- **Private Schema**: `team_pulse_private`
-  - Internal tables: `team_pulse_private.rooms`, `team_pulse_private.room_counts`, `team_pulse_private.participants`.
-  - Direct access `REVOKED` from `PUBLIC`, `anon`, and `authenticated` roles. Not exposed in Supabase Data API.
-- **Public RPC Functions**:
-  - `public.tp_create_room`
-  - `public.tp_get_public_room`
-  - `public.tp_submit_vote`
-  - `public.tp_get_facilitator_room_state`
-  - `public.tp_close_room`
-  - `public.tp_delete_room`
-  - All RPCs defined with `SECURITY DEFINER` and `SET search_path = ''`.
-- **Ownership Marker**: Every Team Pulse schema, table, and function carries database comment `'team-pulse:v1'`.
+- **Project Origin**: `https://qsfcfqstvmmyqchlrkhk.supabase.co`
+- **Publishable Key**: `sb_publishable_yPlrdLevpZxNkpQxMG3qxA_MWIjF0zA`
+- **Private Schema**: `team_pulse_private` (unexposed to Data API)
+- **Public RPCs**: `tp_create_room`, `tp_get_public_room`, `tp_submit_vote`, `tp_get_facilitator_room_state`, `tp_close_room`, `tp_delete_room` (`SECURITY DEFINER`, `search_path = ''`)
+- **Active Cron Job**:
+  - Name: `team-pulse-cleanup-v1`
+  - Schedule: `0 * * * *`
+  - Active: `true`
+  - Command: `SELECT team_pulse_private.cleanup_expired_rooms();`
 
 ---
 
 ## 3. Client API & Key Handling
 
-- **Publishable Key**: `SUPABASE_CONFIG.supabasePublishableKey` (supports `sb_publishable_` format).
+- **Publishable Key**: `SUPABASE_CONFIG.supabasePublishableKey`.
 - **HTTP Header**: Sent ONLY in `apikey` header. No `Authorization: Bearer` header or service-role secret key.
-- **Unconfigured Handling**: In normal mode, if Supabase credentials are placeholder values, Team Pulse renders a clear development configuration view (`renderUnconfiguredView()`) rather than silently using a local mock. `?demo=1` mode continues to use the local mock.
+- **Unconfigured Handling**: In normal mode, if Supabase credentials are placeholder values, Team Pulse renders a clear development configuration view (`renderUnconfiguredView()`). `?demo=1` mode operates 100% locally.

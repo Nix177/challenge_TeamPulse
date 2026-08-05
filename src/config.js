@@ -5,10 +5,8 @@
  * SECURITY NOTICE: NEVER place a Supabase service-role key or database secret in frontend code.
  */
 export const SUPABASE_CONFIG = Object.freeze({
-  // Replace placeholder values with your actual public Supabase project credentials.
-  // Supports keys starting with `sb_publishable_` or legacy anon keys.
-  supabaseUrl: 'https://YOUR_SUPABASE_PROJECT_ID.supabase.co',
-  supabasePublishableKey: 'YOUR_SUPABASE_PUBLISHABLE_KEY',
+  supabaseUrl: 'https://qsfcfqstvmmyqchlrkhk.supabase.co',
+  supabasePublishableKey: 'sb_publishable_yPlrdLevpZxNkpQxMG3qxA_MWIjF0zA',
 });
 
 /**

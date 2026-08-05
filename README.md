@@ -2,7 +2,7 @@
 
 > **Tagline**: “Prendre le pouls. Ouvrir la conversation.”
 
-Team Pulse est une application web statique et éphémère à architecture multi-appareils privée, conçue pour les ateliers d'équipe synchrones. Chaque participant répond depuis son propre smartphone ou ordinateur via un code de session court. Les choix individuels restent strictement anonymes et sont agrégés uniquement pour alimenter la discussion collective.
+Team Pulse est une application web statique et éphémère à architecture multi-appareils privée, connectée à un projet Supabase partagé via un schéma isolé (`team_pulse_private`) et des procédures stockées RPC préfixées (`tp_*`).
 
 ---
 
@@ -11,10 +11,10 @@ Team Pulse est une application web statique et éphémère à architecture multi
 L'application prend en charge deux rôles distincts :
 
 ### 1. Rôle Participant
-- Rejoint une session via un code à 6 caractères (ex: `K7M4PQ`) ou un lien de partage (`?room=K7M4PQ`).
+- Rejoint une session via un code à 6 caractères (ex: `K7M4PQ`) ou un lien participant (`?room=K7M4PQ`).
 - Transmet une seule réponse anonyme.
-- Obtient un récépissé d’enregistrement (*« Réponse enregistrée. Tu peux maintenant fermer cette page. »*).
-- Ne voit jamais les réponses individuelles ni les résultats agrégés.
+- Obtient un récépissé d’enregistrement (*« Réponse enregistrée. Elle a bien été ajoutée à la session K7M4PQ. »*).
+- Ne voit jamais son choix réaffiché sur le récépissé, ni les réponses des autres, ni les résultats agrégés.
 
 ### 2. Rôle Facilitateur
 - Crée une session temporaire (durée max par défaut : 12h).
@@ -22,25 +22,18 @@ L'application prend en charge deux rôles distincts :
 - Partage le code ou le lien participant (`?room=K7M4PQ`). Le lien participant **ne contient jamais** le secret d'administration.
 - Observe en temps réel le nombre total de réponses reçues (rafraîchi toutes les 5s).
 - Clôture les réponses et affiche la répartition agrégée du groupe et la question de discussion.
-- Supprime définitivement la session à la fin de l'atelier.
+- Supprimer définitivement la session à la fin de l'atelier.
 
 ---
 
-## 🔗 URLs Locales & Modes
+## 🔒 Configuration Supabase & Nettoyage Réel
 
-- **Mode Participant (Saisie du code)** : `http://localhost:4173/`
-- **Lien Participant Direct** : `http://localhost:4173/?room=K7M4PQ`
-- **Lien Dashboard Facilitateur** : `http://localhost:4173/?room=K7M4PQ#admin=<secret>`
-- **Mode Démo Local** (`?demo=1`) : `http://localhost:4173/?demo=1` (simule la création, le vote et la révélation sans connexion backend).
-
----
-
-## 🔒 Installation Supabase sur Projet Partagé
-
-1. Preflight Inspection : [`supabase/preflight-team-pulse.sql`](file:///e:/challenge%20huumyk/supabase/preflight-team-pulse.sql)
-2. Script d'installation principal : [`supabase/install-team-pulse.sql`](file:///e:/challenge%20huumyk/supabase/install-team-pulse.sql)
-3. Script de vérification : [`supabase/verify-team-pulse.sql`](file:///e:/challenge%20huumyk/supabase/verify-team-pulse.sql)
-4. Mettre à jour `src/config.js` avec l'URL du projet et la clé publique `supabasePublishableKey`.
+- **URL du Projet** : `https://qsfcfqstvmmyqchlrkhk.supabase.co`
+- **Clé Publique (Publishable Key)** : `sb_publishable_yPlrdLevpZxNkpQxMG3qxA_MWIjF0zA`
+- **Tâche Cron de Nettoyage Réelle Active** :
+  - Nom du job : `team-pulse-cleanup-v1`
+  - Fréquence : `0 * * * *` (chaque heure à la minute 0)
+  - Commande : `SELECT team_pulse_private.cleanup_expired_rooms();`
 
 ---
 

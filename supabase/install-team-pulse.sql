@@ -135,7 +135,7 @@ DECLARE
   v_expires_at TIMESTAMPTZ;
   v_normalized_code TEXT;
 BEGIN
-  v_normalized_code := pg_catalog.upper(pg_catalog.trim(p_code));
+  v_normalized_code := pg_catalog.upper(pg_catalog.btrim(p_code));
 
   IF pg_catalog.length(v_normalized_code) <> 6 THEN
     RAISE EXCEPTION 'INVALID_CODE_FORMAT';
@@ -174,7 +174,7 @@ DECLARE
   v_total INT;
   v_normalized_code TEXT;
 BEGIN
-  v_normalized_code := pg_catalog.upper(pg_catalog.trim(p_code));
+  v_normalized_code := pg_catalog.upper(pg_catalog.btrim(p_code));
 
   SELECT * INTO v_room FROM team_pulse_private.rooms WHERE code = v_normalized_code;
   IF NOT FOUND THEN
@@ -217,7 +217,7 @@ DECLARE
   v_total INT;
   v_normalized_code TEXT;
 BEGIN
-  v_normalized_code := pg_catalog.upper(pg_catalog.trim(p_code));
+  v_normalized_code := pg_catalog.upper(pg_catalog.btrim(p_code));
 
   SELECT * INTO v_room FROM team_pulse_private.rooms WHERE code = v_normalized_code;
   IF NOT FOUND THEN
@@ -278,7 +278,7 @@ DECLARE
   v_counts team_pulse_private.room_counts%ROWTYPE;
   v_normalized_code TEXT;
 BEGIN
-  v_normalized_code := pg_catalog.upper(pg_catalog.trim(p_code));
+  v_normalized_code := pg_catalog.upper(pg_catalog.btrim(p_code));
 
   SELECT * INTO v_room FROM team_pulse_private.rooms WHERE code = v_normalized_code;
   IF NOT FOUND THEN
@@ -325,7 +325,7 @@ DECLARE
   v_room team_pulse_private.rooms%ROWTYPE;
   v_normalized_code TEXT;
 BEGIN
-  v_normalized_code := pg_catalog.upper(pg_catalog.trim(p_code));
+  v_normalized_code := pg_catalog.upper(pg_catalog.btrim(p_code));
 
   SELECT * INTO v_room FROM team_pulse_private.rooms WHERE code = v_normalized_code;
   IF NOT FOUND THEN
@@ -358,7 +358,7 @@ DECLARE
   v_room team_pulse_private.rooms%ROWTYPE;
   v_normalized_code TEXT;
 BEGIN
-  v_normalized_code := pg_catalog.upper(pg_catalog.trim(p_code));
+  v_normalized_code := pg_catalog.upper(pg_catalog.btrim(p_code));
 
   SELECT * INTO v_room FROM team_pulse_private.rooms WHERE code = v_normalized_code;
   IF NOT FOUND THEN

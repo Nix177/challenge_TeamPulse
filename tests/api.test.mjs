@@ -8,6 +8,7 @@ import {
   apiCloseRoom,
   apiDeleteRoom
 } from '../src/api.js';
+import { SUPABASE_CONFIG, isBackendConfigured } from '../src/config.js';
 
 test('Full multi-device room backend lifecycle with tp_* RPCs (create, join, submit, aggregate reveal, delete)', async () => {
   const code = 'TEST01';
@@ -91,11 +92,8 @@ test('Full multi-device room backend lifecycle with tp_* RPCs (create, join, sub
   );
 });
 
-test('Unconfigured normal mode throws UNCONFIGURED_BACKEND without silent mock fallback', async () => {
-  await assert.rejects(
-    async () => {
-      await apiGetPublicRoom('K7M4PQ', false);
-    },
-    (err) => err.message === 'UNCONFIGURED_BACKEND'
-  );
+test('Backend configuration validation and property naming', () => {
+  assert.equal(isBackendConfigured(), true, 'Configured backend credentials must return true');
+  assert.equal(typeof SUPABASE_CONFIG.supabasePublishableKey, 'string');
+  assert.equal(SUPABASE_CONFIG.supabasePublishableKey.startsWith('sb_publishable_'), true);
 });

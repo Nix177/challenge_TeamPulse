@@ -8,7 +8,10 @@
 - **Rationale**: Facilitator URL fragment (`#admin=<secret>`) contains a Web Crypto random secret processed client-side only. The frontend computes its SHA-256 hash (`admin_secret_hash`) for database RPC authentication. Participant links contain only room code (`?room=K7M4PQ`).
 
 ## Decision 3: Client Key Handling & Header Security
-- **Rationale**: Uses `supabasePublishableKey` (supporting `sb_publishable_` format). Sent ONLY in `apikey` HTTP header for REST RPC calls. No `Authorization: Bearer` header or service-role key.
+- **Rationale**: Uses `supabasePublishableKey` (`sb_publishable_yPlrdLevpZxNkpQxMG3qxA_MWIjF0zA`). Sent ONLY in `apikey` HTTP header for REST RPC calls to `https://qsfcfqstvmmyqchlrkhk.supabase.co`. No `Authorization: Bearer` header or service-role key is used.
 
-## Decision 4: Explicit Unconfigured Handling
-- **Rationale**: Normal mode renders a clear development configuration screen when credentials are missing, avoiding silent fallback to local mock. `?demo=1` mode continues to use local mock.
+## Decision 4: Real Active Hourly Cleanup Cron Job
+- **Rationale**: The cron job `team-pulse-cleanup-v1` runs hourly (`0 * * * *`) via `pg_cron` in the shared database, executing `SELECT team_pulse_private.cleanup_expired_rooms();` to physically purge expired sessions.
+
+## Decision 5: Participant Receipt Hiding Selected Choice
+- **Rationale**: To prevent accidental disclosure or screen-peeking, the participant submission receipt displays ONLY the confirmation message, session code, privacy reassurance, and closing instruction. It never re-displays the selected choice or option color.
