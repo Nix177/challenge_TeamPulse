@@ -6,31 +6,36 @@ export const CANONICAL_OPTIONS = Object.freeze([
     id: 'very-difficult',
     label: 'Très difficile',
     supportingText: 'J’aurais besoin de soutien',
-    colorHint: 'hsl(8, 75%, 52%)'
+    colorVar: 'var(--tone-1)',
+    colorHex: '#b65345'
   },
   {
     id: 'difficult',
     label: 'Difficile',
     supportingText: 'Quelque chose me freine',
-    colorHint: 'hsl(28, 80%, 54%)'
+    colorVar: 'var(--tone-2)',
+    colorHex: '#d0784d'
   },
   {
     id: 'mixed',
     label: 'Mitigé',
     supportingText: 'Des éléments positifs et difficiles',
-    colorHint: 'hsl(42, 85%, 50%)'
+    colorVar: 'var(--tone-3)',
+    colorHex: '#bd9b3f'
   },
   {
     id: 'good',
     label: 'Bien',
     supportingText: 'Je peux avancer sereinement',
-    colorHint: 'hsl(155, 60%, 42%)'
+    colorVar: 'var(--tone-4)',
+    colorHex: '#4f9270'
   },
   {
     id: 'very-good',
     label: 'Très bien',
     supportingText: 'J’arrive avec beaucoup d’énergie',
-    colorHint: 'hsl(175, 70%, 38%)'
+    colorVar: 'var(--tone-5)',
+    colorHex: '#1d766c'
   }
 ]);
 

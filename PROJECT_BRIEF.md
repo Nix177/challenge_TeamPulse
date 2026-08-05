@@ -1,9 +1,12 @@
-# Project Brief — Team Pulse
+# Project Brief — Team Pulse (Living Pulse Redesign)
 
 Tagline: “Prendre le pouls. Ouvrir la conversation.”
 
 ## Product Overview
-Team Pulse is a web application designed for synchronous workshops on one shared laptop or tablet. Participants successively express how they arrive in the session. Results are revealed afterward in aggregate to start a human conversation.
+Team Pulse is a warm, contemporary static web application designed for synchronous workshops on one shared laptop or tablet. Participants successively express how they arrive in the session. Results are revealed afterward in aggregate to start a human conversation.
+
+The **Living Pulse** redesign elevates the product experience:
+`individual expression → collective perception → human conversation`
 
 It is NOT:
 - An HR assessment tool
@@ -12,6 +15,12 @@ It is NOT:
 - A surveillance system
 - An engagement score
 - A persistent survey service
+
+## Visual Concept & Architecture
+- **Warm Editorial Palette**: Canvas `#f3efe7`, Canvas deep `#e9e2d7`, Surface `#fffdf9`, Ink `#17231e`, Accent `#126a5a`.
+- **Tone Accents**: Tone 1 (`#b65345`), Tone 2 (`#d0784d`), Tone 3 (`#bd9b3f`), Tone 4 (`#4f9270`), Tone 5 (`#1d766c`).
+- **Data-Driven Visualization**: Generates a smooth cubic Bézier SVG curve mapped dynamically from actual participant percentages (`src/visualisation.js`).
+- **Pure Ephemeral Memory**: Zero web storage, zero network APIs, zero tracking.
 
 ## Canonical Options (Exact Order)
 1. `very-difficult` — Label: “Très difficile” — Text: “J’aurais besoin de soutien”
@@ -41,10 +50,10 @@ Rules (in exact priority order):
 Zero responses: show no observation and explain that the group must first contribute.
 
 ## URL Modes
-- `?demo=1`: Shows "Mode démo" badge and "Charger les données de démonstration" button. Demo counts: Very difficult: 1, Difficult: 2, Mixed: 4, Good: 6, Very good: 3 (Total = 16).
-- `?present=1`: Shows expandable panel "Derrière le prototype".
+- `?demo=1`: Shows "DÉMO" badge and demo data button ("Charger l'exemple"). Demo counts: Very difficult: 1, Difficult: 2, Mixed: 4, Good: 6, Very good: 3 (Total = 16).
+- `?present=1`: Shows expandable panel "Derrière Team Pulse".
 - `?demo=1&present=1`: Combines both.
 - Normal mode: neither badge nor presentation panel exists.
 
 ## Privacy Wording
-“Aucune réponse n’est enregistrée ni envoyée. Les résultats disparaissent lorsque la page est rechargée.”
+“Aucune réponse n’est enregistrée ni envoyée. Les résultats disparaissent lorsque la page me rechargée.”

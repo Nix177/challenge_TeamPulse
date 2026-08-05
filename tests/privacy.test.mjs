@@ -9,6 +9,8 @@ const RUNTIME_FILES = [
   'src/options.js',
   'src/model.js',
   'src/insight.js',
+  'src/copy.js',
+  'src/visualisation.js',
   'src/app.js'
 ];
 
@@ -60,7 +62,7 @@ test('Runtime files do not contain remote external URLs (fonts, scripts, images)
 });
 
 test('Runtime JavaScript files do not log participant choices to console', () => {
-  const jsFiles = ['src/options.js', 'src/model.js', 'src/insight.js', 'src/app.js'];
+  const jsFiles = ['src/options.js', 'src/model.js', 'src/insight.js', 'src/copy.js', 'src/visualisation.js', 'src/app.js'];
 
   for (const relPath of jsFiles) {
     const fullPath = path.resolve(process.cwd(), relPath);
