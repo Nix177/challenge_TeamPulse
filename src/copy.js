@@ -73,7 +73,7 @@ export const COPY = Object.freeze({
     closeBtn: 'Fermer les réponses',
     refreshBtn: 'Actualiser',
     closedHeading: 'Les réponses sont closes.',
-    closedBody: 'Aucune nouvelle réponse ne peut être ajoutée.',
+    closedBody: 'Les participations pour cette session sont fermées.',
     revealBtn: 'Afficher la répartition',
     deleteBtn: 'Supprimer la session'
   },

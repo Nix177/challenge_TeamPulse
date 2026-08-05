@@ -5,8 +5,8 @@
  * non-identifying participant token management, and URL fragment helpers.
  */
 
-// Unambiguous 32-character uppercase alphabet (excludes 0, 1, I, O, L)
-const ROOM_CODE_ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+// Unambiguous 31-character uppercase alphabet (excludes 0, 1, I, O, L)
+const ROOM_CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
 
 /**
  * Generates a random 6-character uppercase room code.
@@ -39,7 +39,7 @@ export function normalizeRoomCode(rawCode) {
  */
 export function isValidRoomCode(code) {
   if (typeof code !== 'string' || code.length !== 6) return false;
-  return /^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{6}$/.test(code);
+  return /^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{6}$/.test(code);
 }
 
 /**
@@ -71,6 +71,7 @@ export async function hashSha256(message) {
  * @returns {string}
  */
 export function getOrCreateParticipantToken(roomCode) {
+  if (typeof sessionStorage === 'undefined') return 'mock_token_node_env';
   const key = `tp_participant_token_${roomCode}`;
   let token = sessionStorage.getItem(key);
   if (!token) {
@@ -87,6 +88,7 @@ export function getOrCreateParticipantToken(roomCode) {
  * @returns {string|null}
  */
 export function getAdminSecretFromUrl() {
+  if (typeof window === 'undefined') return null;
   const hash = window.location.hash;
   if (!hash || !hash.includes('admin=')) return null;
   const match = hash.match(/admin=([a-fA-F0-9]+)/);
@@ -98,6 +100,7 @@ export function getAdminSecretFromUrl() {
  * @returns {string|null}
  */
 export function getRoomCodeFromUrl() {
+  if (typeof window === 'undefined') return null;
   const params = new URLSearchParams(window.location.search);
   const raw = params.get('room');
   if (!raw) return null;
@@ -108,10 +111,11 @@ export function getRoomCodeFromUrl() {
 /**
  * Builds the full participant shareable URL (contains only room code, NEVER admin secret).
  * @param {string} roomCode 
+ * @param {string} [baseUrl]
  * @returns {string}
  */
-export function buildParticipantUrl(roomCode) {
-  const url = new URL(window.location.href);
+export function buildParticipantUrl(roomCode, baseUrl = (typeof window !== 'undefined' ? window.location.href : 'http://localhost:4173/')) {
+  const url = new URL(baseUrl);
   url.search = `?room=${roomCode}`;
   url.hash = '';
   return url.toString();
@@ -121,10 +125,11 @@ export function buildParticipantUrl(roomCode) {
  * Builds the facilitator dashboard URL (includes room code and #admin=<secret> in fragment).
  * @param {string} roomCode 
  * @param {string} adminSecret 
+ * @param {string} [baseUrl]
  * @returns {string}
  */
-export function buildFacilitatorUrl(roomCode, adminSecret) {
-  const url = new URL(window.location.href);
+export function buildFacilitatorUrl(roomCode, adminSecret, baseUrl = (typeof window !== 'undefined' ? window.location.href : 'http://localhost:4173/')) {
+  const url = new URL(baseUrl);
   url.search = `?room=${roomCode}`;
   url.hash = `#admin=${adminSecret}`;
   return url.toString();

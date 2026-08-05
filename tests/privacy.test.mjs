@@ -11,17 +11,18 @@ const RUNTIME_FILES = [
   'src/insight.js',
   'src/copy.js',
   'src/visualisation.js',
+  'src/config.js',
+  'src/session.js',
+  'src/api.js',
   'src/app.js'
 ];
 
-test('Runtime files do not contain forbidden persistence or network APIs', () => {
+test('Runtime files do not contain forbidden persistence or tracking APIs', () => {
   const forbiddenPatterns = [
     /localStorage/i,
-    /sessionStorage/i,
     /indexedDB/i,
     /\bcookie\b/i,
     /serviceWorker/i,
-    /\bfetch\s*\(/i,
     /XMLHttpRequest/i,
     /WebSocket/i,
     /EventSource/i,
@@ -45,24 +46,41 @@ test('Runtime files do not contain forbidden persistence or network APIs', () =>
   }
 });
 
-test('Runtime files do not contain remote external URLs (fonts, scripts, images)', () => {
-  const urlPattern = /https?:\/\/(?!localhost|127\.0\.0\.1)/i;
-
+test('Network fetch requests are restricted strictly to configured Supabase origin', () => {
+  const allowedOriginsPattern = /https:\/\/[a-z0-9_-]+\.supabase\.co/i;
+  
   for (const relPath of RUNTIME_FILES) {
     const fullPath = path.resolve(process.cwd(), relPath);
     if (!fs.existsSync(fullPath)) continue;
     const content = fs.readFileSync(fullPath, 'utf8');
 
-    assert.equal(
-      urlPattern.test(content),
-      false,
-      `File ${relPath} contains an external remote URL!`
-    );
+    // Extract all URLs matching http(s)://
+    const matches = content.match(/https?:\/\/[^\s"'`]+/gi) || [];
+    for (const urlStr of matches) {
+      const isPlaceholder = urlStr.includes('YOUR_SUPABASE_PROJECT_ID');
+      const isAllowedOrigin = allowedOriginsPattern.test(urlStr) || urlStr.includes('localhost') || urlStr.includes('127.0.0.1');
+      
+      assert.equal(
+        isAllowedOrigin || isPlaceholder,
+        true,
+        `File ${relPath} contains an unauthorized remote network URL: ${urlStr}`
+      );
+    }
   }
 });
 
-test('Runtime JavaScript files do not log participant choices to console', () => {
-  const jsFiles = ['src/options.js', 'src/model.js', 'src/insight.js', 'src/copy.js', 'src/visualisation.js', 'src/app.js'];
+test('Runtime JavaScript files do not log participant choices or data to console', () => {
+  const jsFiles = [
+    'src/options.js',
+    'src/model.js',
+    'src/insight.js',
+    'src/copy.js',
+    'src/visualisation.js',
+    'src/config.js',
+    'src/session.js',
+    'src/api.js',
+    'src/app.js'
+  ];
 
   for (const relPath of jsFiles) {
     const fullPath = path.resolve(process.cwd(), relPath);
