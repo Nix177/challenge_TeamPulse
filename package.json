@@ -1,0 +1,10 @@
+{
+  "name": "team-pulse",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Prendre le pouls. Ouvrir la conversation. Synchronous team workshop prototype.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}

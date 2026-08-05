@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Team Pulse — Prendre le pouls. Ouvrir la conversation.</title>
+  <meta name="description" content="Prototype d'expression collective pour ateliers d'équipe en présentiel.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Accessibility Skip Link -->
+  <a href="#main-content" class="skip-link">Aller au contenu principal</a>
+
+  <!-- ARIA Live Announce Region -->
+  <div id="aria-announce" style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0;" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- Header -->
+  <header class="app-header" role="banner">
+    <div class="brand-container">
+      <h1 class="brand-title">Team Pulse</h1>
+      <p class="brand-tagline">Prendre le pouls. Ouvrir la conversation.</p>
+    </div>
+    <div class="header-badges" id="header-badges">
+      <!-- Demo badge injected via JS when ?demo=1 -->
+    </div>
+  </header>
+
+  <!-- Main Content Area -->
+  <main id="main-content" class="main-content" role="main" tabindex="-1">
+
+    <!-- Presentation Mode Panel (Injected if ?present=1) -->
+    <div id="presentation-container"></div>
+
+    <!-- Demo Mode Bar (Injected if ?demo=1) -->
+    <div id="demo-container"></div>
+
+    <!-- Dynamic Main Card Container -->
+    <div id="view-card" class="view-card" tabindex="-1">
+      <!-- Dynamic Views rendered via ESM src/app.js -->
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="app-footer" role="contentinfo">
+    <div class="privacy-notice">
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0; margin-top:2px;">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+      </svg>
+      <p>Aucune réponse n’est enregistrée ni envoyée. Les résultats disparaissent lorsque la page est rechargée.</p>
+    </div>
+
+    <div class="footer-nav">
+      <div id="facilitator-toggle-container">
+        <!-- Dynamic "Voir les résultats" / "Revenir au vote" button -->
+      </div>
+      <div style="font-size: 0.8rem; color: var(--text-subtle);">
+        Team Pulse &copy; Prototype d'atelier
+      </div>
+    </div>
+  </footer>
+
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>
