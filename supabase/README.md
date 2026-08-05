@@ -42,6 +42,10 @@ Run [`supabase/verify-team-pulse.sql`](file:///e:/challenge%20huumyk/supabase/ve
 ### Step 4 (Optional): Schedule Hourly Cleanup
 Run [`supabase/schedule-team-pulse-cleanup.sql`](file:///e:/challenge%20huumyk/supabase/schedule-team-pulse-cleanup.sql).
 - Schedules `team_pulse_private.cleanup_expired_rooms()` hourly via `pg_cron` under job name `team-pulse-cleanup-v1`.
+- Uses distinct named dollar-quote tags (`$do$`, `$chk$`, `$sched$`, `$cron$`) to prevent nested string parsing syntax errors:
+  ```sql
+  EXECUTE $sched$ SELECT cron.schedule('team-pulse-cleanup-v1', '0 * * * *', $cron$ SELECT team_pulse_private.cleanup_expired_rooms(); $cron$) $sched$;
+  ```
 
 ### Teardown / Removal Script (If Ever Needed)
 Run [`supabase/remove-team-pulse.sql`](file:///e:/challenge%20huumyk/supabase/remove-team-pulse.sql).
