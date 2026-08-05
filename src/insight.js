@@ -1,6 +1,7 @@
 import { getTotalVotes } from './model.js';
+import { COPY } from './copy.js';
 
-export const DISCLAIMER_TEXT = "Ce résultat ne mesure ni la performance ni la santé du groupe. Il sert uniquement à commencer une conversation.";
+export const DISCLAIMER_TEXT = COPY.facilitatorRevealed.disclaimer;
 
 /**
  * Calculates deterministic observation and conversation prompt based on participant response counts.
