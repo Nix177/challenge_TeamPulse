@@ -103,6 +103,15 @@ test('API wrapper sends apikey header ONLY and no Authorization Bearer header fo
   assert.equal(apiContent.includes("Authorization"), false, 'Must NOT send Authorization Bearer header for publishable key');
 });
 
+test('API wrapper sends Content-Profile: public header on all production RPC POST requests', () => {
+  const apiContent = fs.readFileSync(path.resolve(process.cwd(), 'src/api.js'), 'utf8');
+  assert.equal(
+    apiContent.includes("'Content-Profile': 'public'"),
+    true,
+    'src/api.js must explicitly include Content-Profile: public header for PostgREST schema selection'
+  );
+});
+
 test('Installation SQL uses private schema team_pulse_private and search_path = "" for SECURITY DEFINER RPCs', () => {
   const installSql = fs.readFileSync(path.resolve(process.cwd(), 'supabase/install-team-pulse.sql'), 'utf8');
   

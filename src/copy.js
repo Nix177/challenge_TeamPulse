@@ -57,7 +57,9 @@ export const COPY = Object.freeze({
     heading: 'Créer une session',
     body: 'Une session temporaire permet à chaque personne de répondre depuis son propre appareil.',
     durationStatement: 'La session restera accessible pendant 12 heures au maximum.',
-    createBtn: 'Créer la session'
+    createBtn: 'Créer la session',
+    loadingBtn: 'Création de la session…',
+    errorMessage: 'La session n’a pas pu être créée. Vérifie ta connexion et réessaie.'
   },
 
   facilitatorDashboard: {

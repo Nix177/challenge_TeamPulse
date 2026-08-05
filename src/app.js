@@ -596,6 +596,8 @@ function renderFacilitatorCreateView() {
     <h2 class="main-heading">${COPY.creation.heading}</h2>
     <p class="subheading">${COPY.creation.body}</p>
 
+    ${errorMessage ? `<div class="warning-box" role="alert" style="margin-bottom: 1.5rem;">${errorMessage}</div>` : ''}
+
     <div class="info-explanation-block">
       <p class="info-explanation-body">${COPY.creation.durationStatement}</p>
     </div>
@@ -605,7 +607,13 @@ function renderFacilitatorCreateView() {
     </div>
   `;
 
-  document.getElementById('btn-create-session-submit').addEventListener('click', async () => {
+  const submitBtn = document.getElementById('btn-create-session-submit');
+
+  submitBtn.addEventListener('click', async () => {
+    errorMessage = null;
+    submitBtn.disabled = true;
+    submitBtn.textContent = COPY.creation.loadingBtn;
+
     const code = generateRoomCode();
     const adminSecret = generateAdminSecret();
 
@@ -630,7 +638,10 @@ function renderFacilitatorCreateView() {
         uiState = 'unconfigured';
         render();
       } else {
-        announce('Erreur lors de la création de la session.');
+        errorMessage = COPY.creation.errorMessage;
+        uiState = 'facilitator-create';
+        render();
+        focusCardHeading();
       }
     }
   });

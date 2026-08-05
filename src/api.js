@@ -17,6 +17,7 @@ const mockDatabase = {
  * Performs a REST RPC request strictly to the configured Supabase endpoint with timeout and error handling.
  * 
  * SECURITY RULE: Sends the public publishable key ONLY in the `apikey` header.
+ * Explicitly specifies `Content-Profile: public` for PostgREST schema selection in multi-schema projects.
  * Does NOT send a Bearer token or service-role key.
  */
 async function callRpc(functionName, payload, isDemoModeCall = false) {
@@ -37,6 +38,7 @@ async function callRpc(functionName, payload, isDemoModeCall = false) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Content-Profile': 'public',
         'apikey': SUPABASE_CONFIG.supabasePublishableKey
       },
       body: JSON.stringify(payload),
