@@ -194,7 +194,7 @@ BEGIN
   RETURN pg_catalog.jsonb_build_object(
     'code', v_room.code,
     'status', v_room.status,
-    'total_votes', pg_catalog.coalesce(v_total, 0)
+    'total_votes', COALESCE(v_total, 0)
   );
 END;
 $$;
@@ -296,14 +296,14 @@ BEGIN
     'status', v_room.status,
     'created_at', v_room.created_at,
     'expires_at', v_room.expires_at,
-    'total', pg_catalog.coalesce(v_counts.total, 0),
+    'total', COALESCE(v_counts.total, 0),
     'counts', pg_catalog.jsonb_build_object(
-      'very-difficult', pg_catalog.coalesce(v_counts.very_difficult, 0),
-      'difficult', pg_catalog.coalesce(v_counts.difficult, 0),
-      'mixed', pg_catalog.coalesce(v_counts.mixed, 0),
-      'good', pg_catalog.coalesce(v_counts.good, 0),
-      'very-good', pg_catalog.coalesce(v_counts.very_good, 0),
-      'total', pg_catalog.coalesce(v_counts.total, 0)
+      'very-difficult', COALESCE(v_counts.very_difficult, 0),
+      'difficult', COALESCE(v_counts.difficult, 0),
+      'mixed', COALESCE(v_counts.mixed, 0),
+      'good', COALESCE(v_counts.good, 0),
+      'very-good', COALESCE(v_counts.very_good, 0),
+      'total', COALESCE(v_counts.total, 0)
     )
   );
 END;

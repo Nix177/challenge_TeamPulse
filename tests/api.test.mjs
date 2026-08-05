@@ -39,7 +39,7 @@ test('Full multi-device room backend lifecycle with tp_* RPCs (create, join, sub
     async () => {
       await apiSubmitVote(code, 'very-good', tokenParticipantA, isDemo);
     },
-    (err) => err.message === 'ALREADY_SUBMITTED'
+    (err) => err.message === 'ALREADY_SUBMITTED' && err.httpStatus === 400 && err.pgCode === '23505'
   );
 
   // 5. Participant B submits vote for 'very-difficult'
@@ -57,7 +57,7 @@ test('Full multi-device room backend lifecycle with tp_* RPCs (create, join, sub
     async () => {
       await apiGetFacilitatorState(code, 'wrong_secret', isDemo);
     },
-    (err) => err.message === 'INVALID_ADMIN_SECRET'
+    (err) => err.message === 'INVALID_SECRET' && err.httpStatus === 401
   );
 
   // 8. Facilitator state query with VALID secret returns detailed option counts via tp_get_facilitator_room_state
@@ -76,7 +76,7 @@ test('Full multi-device room backend lifecycle with tp_* RPCs (create, join, sub
     async () => {
       await apiSubmitVote(code, 'good', 'token_participant_c', isDemo);
     },
-    (err) => err.message === 'CLOSED'
+    (err) => err.message === 'CLOSED' && err.httpStatus === 400
   );
 
   // 11. Delete Room via tp_delete_room
@@ -88,7 +88,7 @@ test('Full multi-device room backend lifecycle with tp_* RPCs (create, join, sub
     async () => {
       await apiGetPublicRoom(code, isDemo);
     },
-    (err) => err.message === 'NOT_FOUND'
+    (err) => err.message === 'NOT_FOUND' && err.httpStatus === 404
   );
 });
 

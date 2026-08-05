@@ -151,3 +151,31 @@ test('SQL files do not contain improperly nested or conflicting dollar-quote del
   // Verify no un-named $$ tags exist in schedule script to prevent nesting conflicts
   assert.equal(scheduleSql.includes('$$'), false, 'Schedule script must not use un-named $$ tags which cause nesting syntax errors');
 });
+
+test('Active Team Pulse SQL files do not contain invalid SQL special form pg_catalog qualifications (pg_catalog.trim, pg_catalog.coalesce)', () => {
+  const activeSqlFiles = [
+    'supabase/install-team-pulse.sql',
+    'supabase/preflight-team-pulse.sql',
+    'supabase/verify-team-pulse.sql',
+    'supabase/schedule-team-pulse-cleanup.sql',
+    'supabase/remove-team-pulse.sql'
+  ];
+
+  for (const relPath of activeSqlFiles) {
+    const fullPath = path.resolve(process.cwd(), relPath);
+    if (!fs.existsSync(fullPath)) continue;
+    const content = fs.readFileSync(fullPath, 'utf8');
+
+    assert.equal(
+      content.includes('pg_catalog.trim('),
+      false,
+      `File ${relPath} must not contain invalid pg_catalog.trim( — use pg_catalog.btrim or TRIM instead`
+    );
+
+    assert.equal(
+      content.includes('pg_catalog.coalesce('),
+      false,
+      `File ${relPath} must not contain invalid pg_catalog.coalesce( — use SQL special form COALESCE instead`
+    );
+  }
+});

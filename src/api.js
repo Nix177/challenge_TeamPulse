@@ -14,6 +14,19 @@ const mockDatabase = {
 };
 
 /**
+ * Helper to construct an Error object enriched with diagnostic metadata.
+ */
+function createApiError(message, category, httpStatus, pgCode, rpcName) {
+  const err = new Error(category);
+  err.category = category;
+  err.httpStatus = httpStatus || null;
+  err.pgCode = pgCode || null;
+  err.rpcName = rpcName || null;
+  err.sanitizedMessage = message || category;
+  return err;
+}
+
+/**
  * Performs a REST RPC request strictly to the configured Supabase endpoint with timeout and error handling.
  * 
  * SECURITY RULE: Sends the public publishable key ONLY in the `apikey` header.
@@ -26,7 +39,7 @@ async function callRpc(functionName, payload, isDemoModeCall = false) {
   }
 
   if (!isBackendConfigured()) {
-    throw new Error('UNCONFIGURED_BACKEND');
+    throw createApiError('Supabase credentials are not configured', 'UNCONFIGURED_BACKEND', null, null, functionName);
   }
 
   const targetUrl = `${SUPABASE_CONFIG.supabaseUrl}/rest/v1/rpc/${functionName}`;
@@ -51,23 +64,31 @@ async function callRpc(functionName, payload, isDemoModeCall = false) {
       const errorText = await response.text();
       let errorJson = {};
       try { errorJson = JSON.parse(errorText); } catch (_) {}
-      const msg = errorJson.message || errorText;
+      const rawMsg = errorJson.message || errorText;
+      const pgCode = errorJson.code || null;
+      const status = response.status;
 
-      if (msg.includes('ROOM_NOT_FOUND')) throw new Error('NOT_FOUND');
-      if (msg.includes('ROOM_CLOSED')) throw new Error('CLOSED');
-      if (msg.includes('ROOM_EXPIRED')) throw new Error('EXPIRED');
-      if (msg.includes('ALREADY_SUBMITTED')) throw new Error('ALREADY_SUBMITTED');
-      if (msg.includes('INVALID_ADMIN_SECRET')) throw new Error('INVALID_SECRET');
-      throw new Error('NETWORK_ERROR');
+      // Sanitize message: strip sensitive parameters if present
+      const sanitizedMsg = String(rawMsg).replace(/(?:p_admin_secret_hash|p_participant_token_hash|token|secret)\s*[:=]\s*[^\s,;]+/gi, '[REDACTED]');
+
+      if (rawMsg.includes('ROOM_NOT_FOUND')) throw createApiError(sanitizedMsg, 'NOT_FOUND', status, pgCode, functionName);
+      if (rawMsg.includes('ROOM_CLOSED')) throw createApiError(sanitizedMsg, 'CLOSED', status, pgCode, functionName);
+      if (rawMsg.includes('ROOM_EXPIRED')) throw createApiError(sanitizedMsg, 'EXPIRED', status, pgCode, functionName);
+      if (rawMsg.includes('ALREADY_SUBMITTED')) throw createApiError(sanitizedMsg, 'ALREADY_SUBMITTED', status, pgCode, functionName);
+      if (rawMsg.includes('INVALID_ADMIN_SECRET')) throw createApiError(sanitizedMsg, 'INVALID_SECRET', status, pgCode, functionName);
+      
+      // Distinguish backend SQL/DB failure from network connection failure
+      throw createApiError(sanitizedMsg, 'SQL_ERROR', status, pgCode, functionName);
     }
 
     return await response.json();
   } catch (err) {
     clearTimeout(timeoutId);
-    if (['UNCONFIGURED_BACKEND', 'NOT_FOUND', 'CLOSED', 'EXPIRED', 'ALREADY_SUBMITTED', 'INVALID_SECRET'].includes(err.message)) {
+    if (['UNCONFIGURED_BACKEND', 'NOT_FOUND', 'CLOSED', 'EXPIRED', 'ALREADY_SUBMITTED', 'INVALID_SECRET', 'SQL_ERROR'].includes(err.category || err.message)) {
       throw err;
     }
-    throw new Error('NETWORK_ERROR');
+    // Fetch network connection failure (e.g. offline, timeout, DNS failure)
+    throw createApiError(err.message || 'Fetch network request failed', 'NETWORK_ERROR', null, null, functionName);
   }
 }
 
@@ -102,9 +123,9 @@ export async function callMockRpc(functionName, payload) {
 
   if (functionName === 'tp_get_public_room') {
     const room = mockDatabase.rooms.get(payload.p_code);
-    if (!room) throw new Error('NOT_FOUND');
-    if (new Date(room.expires_at) < now) throw new Error('EXPIRED');
-    if (room.status === 'closed') throw new Error('CLOSED');
+    if (!room) throw createApiError('ROOM_NOT_FOUND', 'NOT_FOUND', 404, 'P0001', functionName);
+    if (new Date(room.expires_at) < now) throw createApiError('ROOM_EXPIRED', 'EXPIRED', 400, 'P0001', functionName);
+    if (room.status === 'closed') throw createApiError('ROOM_CLOSED', 'CLOSED', 400, 'P0001', functionName);
     const counts = mockDatabase.counts.get(payload.p_code);
     return {
       code: room.code,
@@ -116,13 +137,13 @@ export async function callMockRpc(functionName, payload) {
   if (functionName === 'tp_submit_vote') {
     const code = payload.p_code;
     const room = mockDatabase.rooms.get(code);
-    if (!room) throw new Error('NOT_FOUND');
-    if (new Date(room.expires_at) < now) throw new Error('EXPIRED');
-    if (room.status === 'closed') throw new Error('CLOSED');
+    if (!room) throw createApiError('ROOM_NOT_FOUND', 'NOT_FOUND', 404, 'P0001', functionName);
+    if (new Date(room.expires_at) < now) throw createApiError('ROOM_EXPIRED', 'EXPIRED', 400, 'P0001', functionName);
+    if (room.status === 'closed') throw createApiError('ROOM_CLOSED', 'CLOSED', 400, 'P0001', functionName);
 
     const participantsSet = mockDatabase.participants.get(code);
     if (participantsSet.has(payload.p_participant_token_hash)) {
-      throw new Error('ALREADY_SUBMITTED');
+      throw createApiError('ALREADY_SUBMITTED', 'ALREADY_SUBMITTED', 400, '23505', functionName);
     }
 
     participantsSet.add(payload.p_participant_token_hash);
@@ -138,9 +159,9 @@ export async function callMockRpc(functionName, payload) {
   if (functionName === 'tp_get_facilitator_room_state') {
     const code = payload.p_code;
     const room = mockDatabase.rooms.get(code);
-    if (!room) throw new Error('NOT_FOUND');
+    if (!room) throw createApiError('ROOM_NOT_FOUND', 'NOT_FOUND', 404, 'P0001', functionName);
     if (room.admin_secret_hash !== payload.p_admin_secret_hash) {
-      throw new Error('INVALID_ADMIN_SECRET');
+      throw createApiError('INVALID_ADMIN_SECRET', 'INVALID_SECRET', 401, 'P0001', functionName);
     }
     const counts = mockDatabase.counts.get(code);
     return {
@@ -156,9 +177,9 @@ export async function callMockRpc(functionName, payload) {
   if (functionName === 'tp_close_room') {
     const code = payload.p_code;
     const room = mockDatabase.rooms.get(code);
-    if (!room) throw new Error('NOT_FOUND');
+    if (!room) throw createApiError('ROOM_NOT_FOUND', 'NOT_FOUND', 404, 'P0001', functionName);
     if (room.admin_secret_hash !== payload.p_admin_secret_hash) {
-      throw new Error('INVALID_ADMIN_SECRET');
+      throw createApiError('INVALID_ADMIN_SECRET', 'INVALID_SECRET', 401, 'P0001', functionName);
     }
     room.status = 'closed';
     return { success: true };
@@ -167,9 +188,9 @@ export async function callMockRpc(functionName, payload) {
   if (functionName === 'tp_delete_room') {
     const code = payload.p_code;
     const room = mockDatabase.rooms.get(code);
-    if (!room) throw new Error('NOT_FOUND');
+    if (!room) throw createApiError('ROOM_NOT_FOUND', 'NOT_FOUND', 404, 'P0001', functionName);
     if (room.admin_secret_hash !== payload.p_admin_secret_hash) {
-      throw new Error('INVALID_ADMIN_SECRET');
+      throw createApiError('INVALID_ADMIN_SECRET', 'INVALID_SECRET', 401, 'P0001', functionName);
     }
     mockDatabase.rooms.delete(code);
     mockDatabase.counts.delete(code);
@@ -177,7 +198,7 @@ export async function callMockRpc(functionName, payload) {
     return { success: true };
   }
 
-  throw new Error('UNKNOWN_RPC');
+  throw createApiError('UNKNOWN_RPC', 'SQL_ERROR', 400, '42883', functionName);
 }
 
 /**
