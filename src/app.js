@@ -30,6 +30,7 @@ import {
   apiCloseRoom,
   apiDeleteRoom
 } from './api.js';
+import { isBackendConfigured } from './config.js';
 
 /* Abstract SVG symbols for canonical options */
 const OPTION_SYMBOLS = {
@@ -48,7 +49,7 @@ let roomTotalVotes = 0;
 let roomCounts = createEmptyCounts();
 let selectedOptionId = null;
 
-// UI States: 'landing' | 'voting' | 'confirming' | 'receipt' | 'facilitator-create' | 'facilitator-dashboard' | 'facilitator-closed' | 'facilitator-revealed' | 'facilitator-delete-confirm'
+// UI States: 'landing' | 'unconfigured' | 'voting' | 'confirming' | 'receipt' | 'facilitator-create' | 'facilitator-dashboard' | 'facilitator-closed' | 'facilitator-revealed' | 'facilitator-delete-confirm'
 let uiState = 'landing';
 let errorMessage = null;
 let pollTimerId = null;
@@ -107,7 +108,7 @@ function startPolling() {
   pollTimerId = setInterval(async () => {
     if (document.hidden || !activeRoomCode || !activeAdminSecret) return;
     try {
-      const state = await apiGetFacilitatorState(activeRoomCode, activeAdminSecret);
+      const state = await apiGetFacilitatorState(activeRoomCode, activeAdminSecret, isDemoMode);
       roomTotalVotes = state.total;
       roomStatus = state.status;
       if (state.counts) roomCounts = state.counts;
@@ -158,30 +159,50 @@ async function initApp() {
   }
 
   // If facilitator URL with room & admin secret, navigate to facilitator dashboard
-  if (activeRoomCode && activeAdminSecret && !isDemoMode) {
+  if (activeRoomCode && activeAdminSecret) {
+    if (!isDemoMode && !isBackendConfigured()) {
+      uiState = 'unconfigured';
+      render();
+      return;
+    }
+
     try {
-      const state = await apiGetFacilitatorState(activeRoomCode, activeAdminSecret);
+      const state = await apiGetFacilitatorState(activeRoomCode, activeAdminSecret, isDemoMode);
       roomStatus = state.status;
       roomTotalVotes = state.total;
       if (state.counts) roomCounts = state.counts;
       uiState = state.status === 'closed' ? 'facilitator-closed' : 'facilitator-dashboard';
       if (state.status === 'open') startPolling();
     } catch (err) {
-      errorMessage = COPY.landing.errors.notFound;
-      uiState = 'landing';
+      if (err.message === 'UNCONFIGURED_BACKEND') {
+        uiState = 'unconfigured';
+      } else {
+        errorMessage = COPY.landing.errors.notFound;
+        uiState = 'landing';
+      }
     }
   } 
   // If participant URL with room code only, navigate to participant voting flow
-  else if (activeRoomCode && !isDemoMode) {
+  else if (activeRoomCode) {
+    if (!isDemoMode && !isBackendConfigured()) {
+      uiState = 'unconfigured';
+      render();
+      return;
+    }
+
     try {
-      const pub = await apiGetPublicRoom(activeRoomCode);
+      const pub = await apiGetPublicRoom(activeRoomCode, isDemoMode);
       roomStatus = pub.status;
       uiState = 'voting';
     } catch (err) {
-      errorMessage = err.message === 'CLOSED' ? COPY.landing.errors.closed :
-                     err.message === 'EXPIRED' ? COPY.landing.errors.expired :
-                     COPY.landing.errors.notFound;
-      uiState = 'landing';
+      if (err.message === 'UNCONFIGURED_BACKEND') {
+        uiState = 'unconfigured';
+      } else {
+        errorMessage = err.message === 'CLOSED' ? COPY.landing.errors.closed :
+                       err.message === 'EXPIRED' ? COPY.landing.errors.expired :
+                       COPY.landing.errors.notFound;
+        uiState = 'landing';
+      }
     }
   }
 
@@ -215,7 +236,11 @@ function renderHeaderButton() {
     `;
     document.getElementById('btn-header-nav').addEventListener('click', () => {
       stopPolling();
-      uiState = 'facilitator-create';
+      if (!isDemoMode && !isBackendConfigured()) {
+        uiState = 'unconfigured';
+      } else {
+        uiState = 'facilitator-create';
+      }
       announce(COPY.creation.heading);
       render();
       focusCardHeading();
@@ -230,6 +255,9 @@ function renderViewCard() {
   switch (uiState) {
     case 'landing':
       renderLandingView();
+      break;
+    case 'unconfigured':
+      renderUnconfiguredView();
       break;
     case 'voting':
       renderVotingView();
@@ -258,6 +286,30 @@ function renderViewCard() {
     default:
       renderLandingView();
   }
+}
+
+/**
+ * View 0: Unconfigured Development Screen
+ */
+function renderUnconfiguredView() {
+  viewCardEl.innerHTML = `
+    <span class="step-badge">Configuration Supabase</span>
+    <h2 class="main-heading">Projet Supabase non configuré</h2>
+    <p class="subheading">Pour utiliser les sessions multi-appareils en réseau réel, configurez les identifiants Supabase dans <code>src/config.js</code>.</p>
+
+    <div class="info-explanation-block" style="max-width: 680px;">
+      <h4 class="info-explanation-title">Instructions d’installation :</h4>
+      <ol style="margin-left: 1.25rem; margin-top: 0.5rem; line-height: 1.6; color: var(--ink-soft);">
+        <li>Exécutez le script SQL d’inspection preflight : <code>supabase/preflight-team-pulse.sql</code></li>
+        <li>Exécutez le script d’installation principal : <code>supabase/install-team-pulse.sql</code></li>
+        <li>Saisissez l’URL et la clé publique (publishable key) dans <code>src/config.js</code>.</li>
+      </ol>
+    </div>
+
+    <div class="action-bar">
+      <a href="?demo=1" class="btn btn-primary">Lancer le mode démo local (?demo=1)</a>
+    </div>
+  `;
 }
 
 /**
@@ -314,8 +366,14 @@ function renderLandingView() {
       return;
     }
 
+    if (!isDemoMode && !isBackendConfigured()) {
+      uiState = 'unconfigured';
+      render();
+      return;
+    }
+
     try {
-      const pub = await apiGetPublicRoom(normalized);
+      const pub = await apiGetPublicRoom(normalized, isDemoMode);
       activeRoomCode = normalized;
       roomStatus = pub.status;
       uiState = 'voting';
@@ -323,16 +381,24 @@ function renderLandingView() {
       render();
       focusCardHeading();
     } catch (err) {
-      errorMessage = err.message === 'CLOSED' ? COPY.landing.errors.closed :
-                     err.message === 'EXPIRED' ? COPY.landing.errors.expired :
-                     err.message === 'NOT_FOUND' ? COPY.landing.errors.notFound :
-                     COPY.landing.errors.network;
+      if (err.message === 'UNCONFIGURED_BACKEND') {
+        uiState = 'unconfigured';
+      } else {
+        errorMessage = err.message === 'CLOSED' ? COPY.landing.errors.closed :
+                       err.message === 'EXPIRED' ? COPY.landing.errors.expired :
+                       err.message === 'NOT_FOUND' ? COPY.landing.errors.notFound :
+                       COPY.landing.errors.network;
+      }
       renderLandingView();
     }
   });
 
   document.getElementById('btn-goto-create').addEventListener('click', () => {
-    uiState = 'facilitator-create';
+    if (!isDemoMode && !isBackendConfigured()) {
+      uiState = 'unconfigured';
+    } else {
+      uiState = 'facilitator-create';
+    }
     announce(COPY.creation.heading);
     render();
     focusCardHeading();
@@ -467,7 +533,7 @@ function renderConfirmingView() {
   document.getElementById('btn-confirm-vote').addEventListener('click', async () => {
     try {
       const token = getOrCreateParticipantToken(activeRoomCode);
-      await apiSubmitVote(activeRoomCode, selectedOptionId, token);
+      await apiSubmitVote(activeRoomCode, selectedOptionId, token, isDemoMode);
       uiState = 'receipt';
       announce(COPY.receipt.heading);
       render();
@@ -544,7 +610,7 @@ function renderFacilitatorCreateView() {
     const adminSecret = generateAdminSecret();
 
     try {
-      await apiCreateRoom(code, adminSecret, 12);
+      await apiCreateRoom(code, adminSecret, 12, isDemoMode);
       activeRoomCode = code;
       activeAdminSecret = adminSecret;
       roomStatus = 'open';
@@ -560,7 +626,12 @@ function renderFacilitatorCreateView() {
       render();
       focusCardHeading();
     } catch (err) {
-      announce('Erreur lors de la création de la session.');
+      if (err.message === 'UNCONFIGURED_BACKEND') {
+        uiState = 'unconfigured';
+        render();
+      } else {
+        announce('Erreur lors de la création de la session.');
+      }
     }
   });
 }
@@ -585,7 +656,6 @@ function renderFacilitatorDashboardView() {
     </div>
 
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; margin-bottom: 2rem;">
-      <!-- Room Code Card -->
       <div class="receipt-card" style="margin-bottom: 0;">
         <span class="presentation-section-title">${COPY.facilitatorDashboard.codeLabel}</span>
         <div style="font-size: 2.5rem; font-weight: 800; letter-spacing: 0.15em; color: var(--accent-strong);">
@@ -594,7 +664,6 @@ function renderFacilitatorDashboardView() {
         <button id="btn-copy-code" class="btn btn-secondary btn-sm">${COPY.facilitatorDashboard.copyCodeBtn}</button>
       </div>
 
-      <!-- Share Link Card -->
       <div class="receipt-card" style="margin-bottom: 0;">
         <span class="presentation-section-title">${COPY.facilitatorDashboard.linkLabel}</span>
         <div style="font-size: 0.9rem; font-weight: 600; color: var(--ink-soft); word-break: break-all; margin: 0.5rem 0;">
@@ -622,7 +691,7 @@ function renderFacilitatorDashboardView() {
 
   document.getElementById('btn-refresh-room').addEventListener('click', async () => {
     try {
-      const state = await apiGetFacilitatorState(activeRoomCode, activeAdminSecret);
+      const state = await apiGetFacilitatorState(activeRoomCode, activeAdminSecret, isDemoMode);
       roomTotalVotes = state.total;
       roomStatus = state.status;
       if (state.counts) roomCounts = state.counts;
@@ -633,7 +702,7 @@ function renderFacilitatorDashboardView() {
 
   document.getElementById('btn-close-room').addEventListener('click', async () => {
     try {
-      await apiCloseRoom(activeRoomCode, activeAdminSecret);
+      await apiCloseRoom(activeRoomCode, activeAdminSecret, isDemoMode);
       stopPolling();
       roomStatus = 'closed';
       uiState = 'facilitator-closed';
@@ -665,7 +734,7 @@ function renderFacilitatorClosedView() {
 
   document.getElementById('btn-reveal-results').addEventListener('click', async () => {
     try {
-      const state = await apiGetFacilitatorState(activeRoomCode, activeAdminSecret);
+      const state = await apiGetFacilitatorState(activeRoomCode, activeAdminSecret, isDemoMode);
       roomCounts = state.counts || createEmptyCounts();
       roomTotalVotes = state.total;
       uiState = 'facilitator-revealed';
@@ -785,7 +854,7 @@ function renderFacilitatorDeleteConfirmView() {
 
   document.getElementById('btn-confirm-delete').addEventListener('click', async () => {
     try {
-      await apiDeleteRoom(activeRoomCode, activeAdminSecret);
+      await apiDeleteRoom(activeRoomCode, activeAdminSecret, isDemoMode);
       stopPolling();
       activeRoomCode = null;
       activeAdminSecret = null;

@@ -13,7 +13,7 @@ L'application prend en charge deux rôles distincts :
 ### 1. Rôle Participant
 - Rejoint une session via un code à 6 caractères (ex: `K7M4PQ`) ou un lien de partage (`?room=K7M4PQ`).
 - Transmet une seule réponse anonyme.
-- Obtient un récépissé d'enregistrement (*« Réponse enregistrée. Tu peux maintenant fermer cette page. »*).
+- Obtient un récépissé d’enregistrement (*« Réponse enregistrée. Tu peux maintenant fermer cette page. »*).
 - Ne voit jamais les réponses individuelles ni les résultats agrégés.
 
 ### 2. Rôle Facilitateur
@@ -35,11 +35,12 @@ L'application prend en charge deux rôles distincts :
 
 ---
 
-## 🔒 Configuration Supabase & Sécurité
+## 🔒 Installation Supabase sur Projet Partagé
 
-1. Exécuter le script SQL dans votre projet Supabase : [`supabase/schema.sql`](file:///e:/challenge%20huumyk/supabase/schema.sql).
-2. Mettre à jour `src/config.js` avec l'URL du projet et la clé publique `anon`.
-3. **Sécurité RLS & RPC** : Accès direct aux tables révoqué pour les utilisateurs anonymes. Toutes les opérations s'effectuent via des procédures stockées `SECURITY DEFINER`.
+1. Preflight Inspection : [`supabase/preflight-team-pulse.sql`](file:///e:/challenge%20huumyk/supabase/preflight-team-pulse.sql)
+2. Script d'installation principal : [`supabase/install-team-pulse.sql`](file:///e:/challenge%20huumyk/supabase/install-team-pulse.sql)
+3. Script de vérification : [`supabase/verify-team-pulse.sql`](file:///e:/challenge%20huumyk/supabase/verify-team-pulse.sql)
+4. Mettre à jour `src/config.js` avec l'URL du projet et la clé publique `supabasePublishableKey`.
 
 ---
 

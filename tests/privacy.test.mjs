@@ -54,7 +54,6 @@ test('Network fetch requests are restricted strictly to configured Supabase orig
     if (!fs.existsSync(fullPath)) continue;
     const content = fs.readFileSync(fullPath, 'utf8');
 
-    // Extract all URLs matching http(s)://
     const matches = content.match(/https?:\/\/[^\s"'`]+/gi) || [];
     for (const urlStr of matches) {
       const isPlaceholder = urlStr.includes('YOUR_SUPABASE_PROJECT_ID');
@@ -70,17 +69,7 @@ test('Network fetch requests are restricted strictly to configured Supabase orig
 });
 
 test('Runtime JavaScript files do not log participant choices or data to console', () => {
-  const jsFiles = [
-    'src/options.js',
-    'src/model.js',
-    'src/insight.js',
-    'src/copy.js',
-    'src/visualisation.js',
-    'src/config.js',
-    'src/session.js',
-    'src/api.js',
-    'src/app.js'
-  ];
+  const jsFiles = RUNTIME_FILES.filter(f => f.endsWith('.js'));
 
   for (const relPath of jsFiles) {
     const fullPath = path.resolve(process.cwd(), relPath);
@@ -93,4 +82,49 @@ test('Runtime JavaScript files do not log participant choices or data to console
       `File ${relPath} contains console logging which is prohibited for privacy!`
     );
   }
+});
+
+test('Runtime code uses only tp_* prefixed RPC names', () => {
+  const apiContent = fs.readFileSync(path.resolve(process.cwd(), 'src/api.js'), 'utf8');
+  const genericRpcNames = ['"create_room"', '"get_public_room"', '"submit_room_vote"', '"get_facilitator_room_state"', '"close_room"', '"delete_room"'];
+
+  for (const genericRpc of genericRpcNames) {
+    assert.equal(
+      apiContent.includes(genericRpc),
+      false,
+      `src/api.js should not use generic un-prefixed RPC name ${genericRpc}`
+    );
+  }
+});
+
+test('API wrapper sends apikey header ONLY and no Authorization Bearer header for publishable key', () => {
+  const apiContent = fs.readFileSync(path.resolve(process.cwd(), 'src/api.js'), 'utf8');
+  assert.equal(apiContent.includes("'apikey':"), true, 'Must send apikey header');
+  assert.equal(apiContent.includes("Authorization"), false, 'Must NOT send Authorization Bearer header for publishable key');
+});
+
+test('Installation SQL uses private schema team_pulse_private and search_path = "" for SECURITY DEFINER RPCs', () => {
+  const installSql = fs.readFileSync(path.resolve(process.cwd(), 'supabase/install-team-pulse.sql'), 'utf8');
+  
+  assert.equal(installSql.includes('CREATE SCHEMA IF NOT EXISTS team_pulse_private'), true);
+  assert.equal(installSql.includes("SET search_path = ''"), true);
+  assert.equal(installSql.includes("ALTER DEFAULT PRIVILEGES"), false, 'Must not alter default privileges globally');
+  assert.equal(installSql.includes("public.rooms"), false, 'Must not create generic public.rooms table');
+});
+
+test('Cleanup RPC execution is denied to anon and authenticated roles', () => {
+  const installSql = fs.readFileSync(path.resolve(process.cwd(), 'supabase/install-team-pulse.sql'), 'utf8');
+  assert.equal(
+    installSql.includes('GRANT EXECUTE ON FUNCTION team_pulse_private.cleanup_expired_rooms() TO anon') ||
+    installSql.includes('GRANT EXECUTE ON FUNCTION team_pulse_private.cleanup_expired_rooms() TO authenticated'),
+    false,
+    'Cleanup function MUST NOT be granted to anon or authenticated'
+  );
+});
+
+test('Archived prototype schema carries warning header', () => {
+  const archivePath = path.resolve(process.cwd(), 'supabase/_archive/public-schema-prototype-unsafe.sql');
+  assert.equal(fs.existsSync(archivePath), true, 'Archived prototype schema file must exist');
+  const archiveContent = fs.readFileSync(archivePath, 'utf8');
+  assert.equal(archiveContent.includes('DO NOT EXECUTE'), true, 'Archived prototype schema must contain warning header');
 });

@@ -1,25 +1,27 @@
 /**
  * Supabase Frontend Configuration — Team Pulse
  * 
- * Contains only public client credentials (project URL and publishable anon key).
- * SECURITY NOTICE: NEVER place a Supabase service-role key in frontend code.
+ * Contains ONLY public client credentials (project URL and publishable key).
+ * SECURITY NOTICE: NEVER place a Supabase service-role key or database secret in frontend code.
  */
 export const SUPABASE_CONFIG = Object.freeze({
-  // Replace these placeholder values with your actual Supabase project credentials
+  // Replace placeholder values with your actual public Supabase project credentials.
+  // Supports keys starting with `sb_publishable_` or legacy anon keys.
   supabaseUrl: 'https://YOUR_SUPABASE_PROJECT_ID.supabase.co',
-  supabaseAnonKey: 'YOUR_SUPABASE_ANON_KEY',
+  supabasePublishableKey: 'YOUR_SUPABASE_PUBLISHABLE_KEY',
 });
 
 /**
- * Returns true if valid, non-placeholder Supabase credentials are configured.
+ * Returns true if valid, non-placeholder Supabase public credentials are configured.
+ * @returns {boolean}
  */
 export function isBackendConfigured() {
   return (
     typeof SUPABASE_CONFIG.supabaseUrl === 'string' &&
     SUPABASE_CONFIG.supabaseUrl.startsWith('https://') &&
     !SUPABASE_CONFIG.supabaseUrl.includes('YOUR_SUPABASE_PROJECT_ID') &&
-    typeof SUPABASE_CONFIG.supabaseAnonKey === 'string' &&
-    SUPABASE_CONFIG.supabaseAnonKey.length > 20 &&
-    !SUPABASE_CONFIG.supabaseAnonKey.includes('YOUR_SUPABASE_ANON_KEY')
+    typeof SUPABASE_CONFIG.supabasePublishableKey === 'string' &&
+    SUPABASE_CONFIG.supabasePublishableKey.length > 20 &&
+    !SUPABASE_CONFIG.supabasePublishableKey.includes('YOUR_SUPABASE_PUBLISHABLE_KEY')
   );
 }

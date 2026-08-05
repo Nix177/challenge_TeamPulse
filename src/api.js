@@ -5,20 +5,27 @@ import { hashSha256 } from './session.js';
 const REQUEST_TIMEOUT_MS = 8000;
 
 /**
- * In-memory fallback database for local development when Supabase credentials are placeholder.
+ * In-memory mock database for local development and demo mode.
  */
 const mockDatabase = {
-  rooms: new Map(), // code -> { code, admin_secret_hash, status, created_at, expires_at }
-  counts: new Map(), // code -> { total, 'very-difficult': 0, ... }
-  participants: new Map() // code -> Set<participant_token_hash>
+  rooms: new Map(),
+  counts: new Map(),
+  participants: new Map()
 };
 
 /**
- * Performs a fetch request strictly to the configured Supabase RPC endpoint with timeout and error handling.
+ * Performs a REST RPC request strictly to the configured Supabase endpoint with timeout and error handling.
+ * 
+ * SECURITY RULE: Sends the public publishable key ONLY in the `apikey` header.
+ * Does NOT send a Bearer token or service-role key.
  */
-async function callRpc(functionName, payload) {
-  if (!isBackendConfigured()) {
+async function callRpc(functionName, payload, isDemoModeCall = false) {
+  if (isDemoModeCall) {
     return callMockRpc(functionName, payload);
+  }
+
+  if (!isBackendConfigured()) {
+    throw new Error('UNCONFIGURED_BACKEND');
   }
 
   const targetUrl = `${SUPABASE_CONFIG.supabaseUrl}/rest/v1/rpc/${functionName}`;
@@ -30,8 +37,7 @@ async function callRpc(functionName, payload) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': SUPABASE_CONFIG.supabaseAnonKey,
-        'Authorization': `Bearer ${SUPABASE_CONFIG.supabaseAnonKey}`
+        'apikey': SUPABASE_CONFIG.supabasePublishableKey
       },
       body: JSON.stringify(payload),
       signal: controller.signal
@@ -56,7 +62,7 @@ async function callRpc(functionName, payload) {
     return await response.json();
   } catch (err) {
     clearTimeout(timeoutId);
-    if (['NOT_FOUND', 'CLOSED', 'EXPIRED', 'ALREADY_SUBMITTED', 'INVALID_SECRET'].includes(err.message)) {
+    if (['UNCONFIGURED_BACKEND', 'NOT_FOUND', 'CLOSED', 'EXPIRED', 'ALREADY_SUBMITTED', 'INVALID_SECRET'].includes(err.message)) {
       throw err;
     }
     throw new Error('NETWORK_ERROR');
@@ -64,15 +70,13 @@ async function callRpc(functionName, payload) {
 }
 
 /**
- * Local mock RPC handler for development mode without active backend credentials.
+ * Local mock RPC handler for unit testing and demo mode.
  */
-async function callMockRpc(functionName, payload) {
-  // Simulate short network delay (50ms)
-  await new Promise(r => setTimeout(r, 50));
-
+export async function callMockRpc(functionName, payload) {
+  await new Promise(r => setTimeout(r, 20));
   const now = new Date();
 
-  if (functionName === 'create_room') {
+  if (functionName === 'tp_create_room') {
     const code = payload.p_code;
     const expiresAt = new Date(now.getTime() + (payload.p_duration_hours || 12) * 3600 * 1000).toISOString();
     mockDatabase.rooms.set(code, {
@@ -94,7 +98,7 @@ async function callMockRpc(functionName, payload) {
     return { success: true, code, expires_at: expiresAt };
   }
 
-  if (functionName === 'get_public_room') {
+  if (functionName === 'tp_get_public_room') {
     const room = mockDatabase.rooms.get(payload.p_code);
     if (!room) throw new Error('NOT_FOUND');
     if (new Date(room.expires_at) < now) throw new Error('EXPIRED');
@@ -107,7 +111,7 @@ async function callMockRpc(functionName, payload) {
     };
   }
 
-  if (functionName === 'submit_room_vote') {
+  if (functionName === 'tp_submit_vote') {
     const code = payload.p_code;
     const room = mockDatabase.rooms.get(code);
     if (!room) throw new Error('NOT_FOUND');
@@ -122,19 +126,19 @@ async function callMockRpc(functionName, payload) {
     participantsSet.add(payload.p_participant_token_hash);
     const counts = mockDatabase.counts.get(code);
     const opt = payload.p_option_id;
-    if (counts[opt] !== undefined) {
+    if (counts && counts[opt] !== undefined) {
       counts[opt] += 1;
       counts.total += 1;
     }
-    return { success: true, total: counts.total };
+    return { success: true, total: counts ? counts.total : 0 };
   }
 
-  if (functionName === 'get_facilitator_room_state') {
+  if (functionName === 'tp_get_facilitator_room_state') {
     const code = payload.p_code;
     const room = mockDatabase.rooms.get(code);
     if (!room) throw new Error('NOT_FOUND');
     if (room.admin_secret_hash !== payload.p_admin_secret_hash) {
-      throw new Error('INVALID_SECRET');
+      throw new Error('INVALID_ADMIN_SECRET');
     }
     const counts = mockDatabase.counts.get(code);
     return {
@@ -147,23 +151,23 @@ async function callMockRpc(functionName, payload) {
     };
   }
 
-  if (functionName === 'close_room') {
+  if (functionName === 'tp_close_room') {
     const code = payload.p_code;
     const room = mockDatabase.rooms.get(code);
     if (!room) throw new Error('NOT_FOUND');
     if (room.admin_secret_hash !== payload.p_admin_secret_hash) {
-      throw new Error('INVALID_SECRET');
+      throw new Error('INVALID_ADMIN_SECRET');
     }
     room.status = 'closed';
     return { success: true };
   }
 
-  if (functionName === 'delete_room') {
+  if (functionName === 'tp_delete_room') {
     const code = payload.p_code;
     const room = mockDatabase.rooms.get(code);
     if (!room) throw new Error('NOT_FOUND');
     if (room.admin_secret_hash !== payload.p_admin_secret_hash) {
-      throw new Error('INVALID_SECRET');
+      throw new Error('INVALID_ADMIN_SECRET');
     }
     mockDatabase.rooms.delete(code);
     mockDatabase.counts.delete(code);
@@ -175,65 +179,65 @@ async function callMockRpc(functionName, payload) {
 }
 
 /**
- * Creates a new room on the backend.
+ * Creates a new room on the backend via tp_create_room.
  */
-export async function apiCreateRoom(code, adminSecret, durationHours = 12) {
+export async function apiCreateRoom(code, adminSecret, durationHours = 12, isDemoMode = false) {
   const secretHash = await hashSha256(adminSecret);
-  return callRpc('create_room', {
+  return callRpc('tp_create_room', {
     p_code: code,
     p_admin_secret_hash: secretHash,
     p_duration_hours: durationHours
-  });
+  }, isDemoMode);
 }
 
 /**
- * Fetches public room status (does NOT return option counts).
+ * Fetches public room status via tp_get_public_room (does NOT return option counts).
  */
-export async function apiGetPublicRoom(code) {
-  return callRpc('get_public_room', { p_code: code });
+export async function apiGetPublicRoom(code, isDemoMode = false) {
+  return callRpc('tp_get_public_room', { p_code: code }, isDemoMode);
 }
 
 /**
- * Submits a participant vote.
+ * Submits a participant vote via tp_submit_vote.
  */
-export async function apiSubmitVote(code, optionId, participantToken) {
+export async function apiSubmitVote(code, optionId, participantToken, isDemoMode = false) {
   const tokenHash = await hashSha256(participantToken);
-  return callRpc('submit_room_vote', {
+  return callRpc('tp_submit_vote', {
     p_code: code,
     p_option_id: optionId,
     p_participant_token_hash: tokenHash
-  });
+  }, isDemoMode);
 }
 
 /**
- * Fetches detailed room state for facilitator (requires admin secret).
+ * Fetches detailed room state for facilitator via tp_get_facilitator_room_state.
  */
-export async function apiGetFacilitatorState(code, adminSecret) {
+export async function apiGetFacilitatorState(code, adminSecret, isDemoMode = false) {
   const secretHash = await hashSha256(adminSecret);
-  return callRpc('get_facilitator_room_state', {
+  return callRpc('tp_get_facilitator_room_state', {
     p_code: code,
     p_admin_secret_hash: secretHash
-  });
+  }, isDemoMode);
 }
 
 /**
- * Closes room submissions (requires admin secret).
+ * Closes room submissions via tp_close_room.
  */
-export async function apiCloseRoom(code, adminSecret) {
+export async function apiCloseRoom(code, adminSecret, isDemoMode = false) {
   const secretHash = await hashSha256(adminSecret);
-  return callRpc('close_room', {
+  return callRpc('tp_close_room', {
     p_code: code,
     p_admin_secret_hash: secretHash
-  });
+  }, isDemoMode);
 }
 
 /**
- * Deletes room permanently (requires admin secret).
+ * Deletes room permanently via tp_delete_room.
  */
-export async function apiDeleteRoom(code, adminSecret) {
+export async function apiDeleteRoom(code, adminSecret, isDemoMode = false) {
   const secretHash = await hashSha256(adminSecret);
-  return callRpc('delete_room', {
+  return callRpc('tp_delete_room', {
     p_code: code,
     p_admin_secret_hash: secretHash
-  });
+  }, isDemoMode);
 }

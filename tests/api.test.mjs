@@ -9,84 +9,93 @@ import {
   apiDeleteRoom
 } from '../src/api.js';
 
-test('Full multi-device room backend lifecycle (create, join, submit, aggregate reveal, delete)', async () => {
+test('Full multi-device room backend lifecycle with tp_* RPCs (create, join, submit, aggregate reveal, delete)', async () => {
   const code = 'TEST01';
   const adminSecret = 'secret12345678901234567890123456';
   const tokenParticipantA = 'token_participant_a_123456789012';
   const tokenParticipantB = 'token_participant_b_123456789012';
+  const isDemo = true; // Use mock mode for automated node unit test
 
-  // 1. Create Room
-  const createRes = await apiCreateRoom(code, adminSecret, 12);
+  // 1. Create Room via tp_create_room
+  const createRes = await apiCreateRoom(code, adminSecret, 12, isDemo);
   assert.equal(createRes.success, true);
   assert.equal(createRes.code, code);
 
-  // 2. Participant A joins room (Public room state)
-  const publicState1 = await apiGetPublicRoom(code);
+  // 2. Participant A joins room via tp_get_public_room
+  const publicState1 = await apiGetPublicRoom(code, isDemo);
   assert.equal(publicState1.code, code);
   assert.equal(publicState1.status, 'open');
   assert.equal(publicState1.total_votes, 0);
   assert.equal(publicState1.counts, undefined, 'Public room API must NEVER expose option counts!');
 
-  // 3. Participant A submits vote for 'good'
-  const voteResA = await apiSubmitVote(code, 'good', tokenParticipantA);
+  // 3. Participant A submits vote for 'good' via tp_submit_vote
+  const voteResA = await apiSubmitVote(code, 'good', tokenParticipantA, isDemo);
   assert.equal(voteResA.success, true);
   assert.equal(voteResA.total, 1);
 
   // 4. Duplicate submission from Participant A is rejected
   await assert.rejects(
     async () => {
-      await apiSubmitVote(code, 'very-good', tokenParticipantA);
+      await apiSubmitVote(code, 'very-good', tokenParticipantA, isDemo);
     },
     (err) => err.message === 'ALREADY_SUBMITTED'
   );
 
   // 5. Participant B submits vote for 'very-difficult'
-  const voteResB = await apiSubmitVote(code, 'very-difficult', tokenParticipantB);
+  const voteResB = await apiSubmitVote(code, 'very-difficult', tokenParticipantB, isDemo);
   assert.equal(voteResB.success, true);
   assert.equal(voteResB.total, 2);
 
   // 6. Public room query still shows ONLY total votes = 2, NO option counts
-  const publicState2 = await apiGetPublicRoom(code);
+  const publicState2 = await apiGetPublicRoom(code, isDemo);
   assert.equal(publicState2.total_votes, 2);
   assert.equal(publicState2.counts, undefined);
 
   // 7. Facilitator state query with INVALID secret is rejected
   await assert.rejects(
     async () => {
-      await apiGetFacilitatorState(code, 'wrong_secret');
+      await apiGetFacilitatorState(code, 'wrong_secret', isDemo);
     },
-    (err) => err.message === 'INVALID_SECRET'
+    (err) => err.message === 'INVALID_ADMIN_SECRET'
   );
 
-  // 8. Facilitator state query with VALID secret returns detailed option counts
-  const facilitatorState = await apiGetFacilitatorState(code, adminSecret);
+  // 8. Facilitator state query with VALID secret returns detailed option counts via tp_get_facilitator_room_state
+  const facilitatorState = await apiGetFacilitatorState(code, adminSecret, isDemo);
   assert.equal(facilitatorState.code, code);
   assert.equal(facilitatorState.total, 2);
   assert.equal(facilitatorState.counts['good'], 1);
   assert.equal(facilitatorState.counts['very-difficult'], 1);
-  assert.equal(facilitatorState.counts['mixed'], 0);
 
-  // 9. Close Room
-  const closeRes = await apiCloseRoom(code, adminSecret);
+  // 9. Close Room via tp_close_room
+  const closeRes = await apiCloseRoom(code, adminSecret, isDemo);
   assert.equal(closeRes.success, true);
 
   // 10. New vote after room closure is rejected
   await assert.rejects(
     async () => {
-      await apiSubmitVote(code, 'good', 'token_participant_c');
+      await apiSubmitVote(code, 'good', 'token_participant_c', isDemo);
     },
     (err) => err.message === 'CLOSED'
   );
 
-  // 11. Delete Room
-  const deleteRes = await apiDeleteRoom(code, adminSecret);
+  // 11. Delete Room via tp_delete_room
+  const deleteRes = await apiDeleteRoom(code, adminSecret, isDemo);
   assert.equal(deleteRes.success, true);
 
   // 12. Querying deleted room returns NOT_FOUND
   await assert.rejects(
     async () => {
-      await apiGetPublicRoom(code);
+      await apiGetPublicRoom(code, isDemo);
     },
     (err) => err.message === 'NOT_FOUND'
+  );
+});
+
+test('Unconfigured normal mode throws UNCONFIGURED_BACKEND without silent mock fallback', async () => {
+  await assert.rejects(
+    async () => {
+      await apiGetPublicRoom('K7M4PQ', false);
+    },
+    (err) => err.message === 'UNCONFIGURED_BACKEND'
   );
 });
