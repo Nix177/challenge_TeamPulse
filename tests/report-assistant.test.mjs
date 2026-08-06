@@ -64,12 +64,18 @@ test('TeamPulseReportRetriever handles unknown query cleanly with fallback conte
   assert.equal(res.chunks.length > 0, true, 'Fallback sections must be returned');
 });
 
-test('SYSTEM_INSTRUCTION contains strict grounding rules and forbids invented client feedback', () => {
+test('SYSTEM_INSTRUCTION contains strict grounding rules, neutral French-Swiss accent instructions, and forbids Quebec regionalisms', () => {
   assert.equal(SYSTEM_INSTRUCTION.includes('Nicolas Tuor'), true);
   assert.equal(SYSTEM_INSTRUCTION.includes('troisième personne'), true);
   assert.equal(SYSTEM_INSTRUCTION.includes('N\'inventez JAMAIS de retours clients'), true);
   assert.equal(SYSTEM_INSTRUCTION.includes('maquette de démonstration'), true);
   assert.equal(SYSTEM_INSTRUCTION.includes('vibe coding'), true);
+
+  // Regional accent & pronunciation assertions
+  assert.equal(SYSTEM_INSTRUCTION.includes('français standard européen'), true, 'Must specify standard European French');
+  assert.equal(SYSTEM_INSTRUCTION.includes('prononciation naturelle et neutre de Suisse romande'), true, 'Must specify neutral French-Swiss pronunciation');
+  assert.equal(SYSTEM_INSTRUCTION.includes('N’utilisez pas d’accent québécois ou canadien'), true, 'Must forbid Quebec or Canadian French accent');
+  assert.equal(SYSTEM_INSTRUCTION.includes('STANDARD EUROPEAN FRENCH'), true, 'Must include English rule for model reliability');
 });
 
 test('SECURITY: api/live-token.js uses ESM default export, official v1beta auth_tokens, x-goog-api-key, and NEVER leaks permanent key', async () => {
