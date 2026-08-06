@@ -151,13 +151,20 @@ function startReceiptPolling() {
     try {
       const pub = await apiGetPublicRoom(activeRoomCode, isDemoMode);
       participantReturnedTotal = pub.total_votes;
+      roomStatus = pub.status;
 
-      // If results are revealed (pub.counts returned or status closed), switch to revealed result view
-      if (pub.counts || pub.status === 'closed') {
-        if (pub.counts) roomCounts = pub.counts;
+      // If valid aggregate counts are returned (or status is closed with valid counts), render revealed results
+      if (hasValidCounts(pub.counts)) {
+        roomCounts = pub.counts;
         roomTotalVotes = pub.total_votes;
         roomStatus = 'closed';
         stopReceiptPolling();
+        render();
+        return;
+      }
+
+      // If room is closed but aggregate counts are missing, re-render receipt view to display honest notice
+      if (pub.status === 'closed') {
         render();
         return;
       }
@@ -490,9 +497,9 @@ function renderVotingView() {
     form.querySelectorAll('input[name="pulse-option"]').forEach(r => r.disabled = true);
 
     try {
-      userSubmittedOptionId = selectedOptionId;
       const token = getOrCreateParticipantToken(activeRoomCode);
       const res = await apiSubmitVote(activeRoomCode, selectedOptionId, token, isDemoMode);
+      userSubmittedOptionId = selectedOptionId;
       participantReturnedTotal = res.total !== undefined ? res.total : 1;
       uiState = 'receipt';
       announce(COPY.receipt.heading);
@@ -519,13 +526,15 @@ function renderVotingView() {
  * View 3: Participant Receipt View (Waiting or Revealed Results)
  */
 function renderReceiptView() {
-  const selectedOpt = CANONICAL_OPTIONS.find(o => o.id === selectedOptionId || o.id === userSubmittedOptionId);
+  const selectedOpt = CANONICAL_OPTIONS.find(o => o.id === userSubmittedOptionId);
 
-  // If results have been revealed (counts available in roomCounts or status is closed), show final collective result
-  if (roomStatus === 'closed' || (roomCounts && getTotalVotes(roomCounts) > 0 && roomCounts['very-difficult'] !== undefined)) {
+  // If results have been revealed and valid aggregate counts exist, show final collective result
+  if (roomStatus === 'closed' && hasValidCounts(roomCounts)) {
     renderParticipantRevealedView(selectedOpt);
     return;
   }
+
+  const isClosedWithoutCounts = (roomStatus === 'closed' && !hasValidCounts(roomCounts));
 
   viewCardEl.innerHTML = `
     <span class="step-badge">Session ${activeRoomCode}</span>
@@ -546,7 +555,7 @@ function renderReceiptView() {
 
     <div class="info-explanation-block" style="margin: 1.5rem 0;">
       <p class="info-explanation-body" style="font-weight: 600; color: var(--accent-strong);">
-        ${COPY.receipt.waitingStatement}
+        ${isClosedWithoutCounts ? COPY.receipt.closedWithoutCountsNotice : COPY.receipt.waitingStatement}
       </p>
       <p class="info-explanation-privacy" style="margin-top: 0.5rem;">
         ${COPY.receipt.secondaryText}

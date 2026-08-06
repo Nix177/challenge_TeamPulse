@@ -1,6 +1,19 @@
 import { CANONICAL_OPTIONS } from './options.js';
 
 /**
+ * Strict validator for aggregate counts object.
+ * Returns true if counts contains valid numeric values for all 5 canonical options.
+ * 
+ * @param {any} counts 
+ * @returns {boolean}
+ */
+export function hasValidCounts(counts) {
+  if (!counts || typeof counts !== 'object') return false;
+  const keys = ['very-difficult', 'difficult', 'mixed', 'good', 'very-good'];
+  return keys.every(k => typeof counts[k] === 'number' && !isNaN(counts[k]) && counts[k] >= 0);
+}
+
+/**
  * Calculates proportions and stacked horizontal bar segments for revealed group results.
  * 
  * @param {Record<string, number>} counts Map of optionId -> vote count

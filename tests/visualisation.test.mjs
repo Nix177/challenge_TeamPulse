@@ -1,8 +1,50 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  generateStackedBarVisualization
+  generateStackedBarVisualization,
+  hasValidCounts
 } from '../src/visualisation.js';
+
+test('hasValidCounts correctly validates genuine zero counts, valid counts, and rejects missing/malformed objects', () => {
+  const genuineZero = {
+    'very-difficult': 0,
+    'difficult': 0,
+    'mixed': 0,
+    'good': 0,
+    'very-good': 0
+  };
+  assert.equal(hasValidCounts(genuineZero), true, 'Genuine zero counts object must be valid');
+
+  const validCounts = {
+    'very-difficult': 1,
+    'difficult': 2,
+    'mixed': 4,
+    'good': 6,
+    'very-good': 3
+  };
+  assert.equal(hasValidCounts(validCounts), true, 'Valid populated counts object must be valid');
+
+  assert.equal(hasValidCounts(null), false);
+  assert.equal(hasValidCounts(undefined), false);
+  assert.equal(hasValidCounts({}), false);
+
+  const incompleteCounts = {
+    'very-difficult': 1,
+    'difficult': 2,
+    'mixed': 4,
+    'good': 6
+  };
+  assert.equal(hasValidCounts(incompleteCounts), false, 'Counts missing a key must be invalid');
+
+  const malformedCounts = {
+    'very-difficult': 1,
+    'difficult': 'invalid',
+    'mixed': 4,
+    'good': 6,
+    'very-good': 3
+  };
+  assert.equal(hasValidCounts(malformedCounts), false, 'Counts with non-numeric property must be invalid');
+});
 
 test('generateStackedBarVisualization(counts) handles 0 total responses cleanly', () => {
   const zeroCounts = {

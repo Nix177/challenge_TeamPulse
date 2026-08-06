@@ -38,10 +38,11 @@ export const COPY = Object.freeze({
     body: 'Votre choix a bien été enregistré.',
     yourChoiceLabel: 'Votre réponse :',
     waitingStatement: 'Les résultats apparaîtront ici lorsque la personne qui anime les affichera.',
+    closedWithoutCountsNotice: 'Les réponses sont closes, mais les résultats ne sont pas encore disponibles.',
     secondaryText: 'Vous pouvez garder cette page ouverte.',
     closedNotice: 'Les résultats sont maintenant disponibles ci-dessous.',
     offlineNotice: 'Actualisation momentanément indisponible.',
-    alreadySubmitted: 'Une réponse a déjà été enregistrée depuis ce navigateur pour cette session.'
+    alreadySubmitted: 'Une réponse a déjà été enregistrée depuis ce navigateur.'
   },
 
   creation: {
