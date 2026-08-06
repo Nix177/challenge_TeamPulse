@@ -42,7 +42,10 @@ export const COPY = Object.freeze({
     secondaryText: 'Vous pouvez garder cette page ouverte.',
     closedNotice: 'Les résultats sont maintenant disponibles ci-dessous.',
     offlineNotice: 'Actualisation momentanément indisponible.',
-    alreadySubmitted: 'Une réponse a déjà été enregistrée depuis ce navigateur.'
+    alreadySubmitted: 'Une réponse a déjà été enregistrée depuis ce navigateur.',
+    refreshBtnParticipant: 'Actualiser maintenant',
+    refreshBtnLoading: 'Actualisation…',
+    refreshStatusWaiting: 'Les résultats ne sont pas encore affichés.'
   },
 
   creation: {
@@ -61,12 +64,16 @@ export const COPY = Object.freeze({
     linkLabel: 'Lien à partager',
     copyCodeBtn: 'Copier le code',
     copyLinkBtn: 'Copier le lien',
-    codeCopied: 'Code copié !',
-    linkCopied: 'Lien copié !',
+    codeCopied: 'Code copié ✓',
+    linkCopied: 'Lien copié ✓',
+    copyFailed: 'Copie impossible. Sélectionnez le contenu manuellement.',
     step2Title: '2. Affichez les résultats',
     revealBtn: 'Afficher les résultats',
     revealingBtn: 'Affichage des résultats…',
     refreshBtn: 'Actualiser',
+    refreshBtnLoading: 'Actualisation…',
+    refreshStatusUpdated: 'Compteur actualisé.',
+    refreshStatusFailed: 'Impossible d’actualiser pour le moment.',
     emptyState: 'En attente de la première réponse.',
     smallGroupConfirm: {
       question: 'Avec moins de trois réponses, certains choix peuvent être faciles à deviner. Afficher quand même ?',
@@ -82,6 +89,10 @@ export const COPY = Object.freeze({
     facilitationPromptText: 'De quoi avons-nous besoin pour bien commencer cette session ?',
     facilitationPromptSub: 'Un instantané du groupe, pas une évaluation.',
     newSessionBtn: 'Créer une nouvelle session',
+    refreshBtn: 'Actualiser',
+    refreshBtnLoading: 'Actualisation…',
+    refreshStatusUpdated: 'Résultats actualisés.',
+    refreshStatusFailed: 'Impossible d’actualiser les résultats pour le moment.',
     deleteBtn: 'Supprimer cette session'
   },
 

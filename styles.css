@@ -403,7 +403,8 @@ body {
   transform: scale(1);
 }
 
-.option-label:has(.native-radio:checked) {
+.option-label:has(.native-radio:checked),
+.option-label.is-selected {
   border-color: var(--tile-accent, var(--accent));
   border-width: 2px;
   background-color: var(--surface-raised);
@@ -411,7 +412,8 @@ body {
   transform: translateY(-2px);
 }
 
-.option-label:has(.native-radio:focus-visible) {
+.option-label:has(.native-radio:focus-visible),
+.option-label.has-focus {
   outline: 3px solid var(--accent);
 }
 
@@ -932,6 +934,22 @@ body {
   color: var(--ink-faint);
   font-style: italic;
   margin-bottom: 2rem;
+}
+
+/* Inline status feedback container */
+.inline-status {
+  min-height: 1.25rem;
+  font-size: 0.875rem;
+  color: var(--ink-soft);
+  font-weight: 500;
+  margin-top: 0.5rem;
+  word-break: break-word;
+  transition: opacity var(--transition-fast);
+}
+
+.inline-status.is-error {
+  color: #b91c1c;
+  font-weight: 600;
 }
 
 /* Footer Layout */

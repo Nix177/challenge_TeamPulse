@@ -141,6 +141,67 @@ function startPolling() {
 }
 
 /**
+ * Copies text to clipboard with button label feedback and inline status display.
+ */
+async function copyWithFeedback(buttonEl, textToCopy, successText, statusElId = 'facilitator-copy-status') {
+  const statusEl = document.getElementById(statusElId);
+  const originalText = buttonEl.textContent;
+  try {
+    await navigator.clipboard.writeText(textToCopy);
+    buttonEl.textContent = successText;
+    announce(successText);
+    if (statusEl) {
+      statusEl.textContent = '';
+      statusEl.classList.remove('is-error');
+    }
+    setTimeout(() => {
+      if (buttonEl && buttonEl.textContent === successText) {
+        buttonEl.textContent = originalText;
+      }
+    }, 2000);
+  } catch (_) {
+    if (statusEl) {
+      statusEl.textContent = COPY.facilitatorDashboard.copyFailed;
+      statusEl.classList.add('is-error');
+    }
+  }
+}
+
+/**
+ * Reusable helper to refresh room state for participant.
+ * Used by both background polling and manual refresh button.
+ */
+async function refreshParticipantRoomState() {
+  if (!activeRoomCode) return { state: 'error' };
+  try {
+    const pub = await apiGetPublicRoom(activeRoomCode, isDemoMode);
+    participantReturnedTotal = pub.total_votes;
+    roomStatus = pub.status;
+
+    if (hasValidCounts(pub.counts)) {
+      roomCounts = pub.counts;
+      roomTotalVotes = pub.total_votes;
+      roomStatus = 'closed';
+      stopReceiptPolling();
+      render();
+      return { state: 'revealed' };
+    }
+
+    if (pub.status === 'closed') {
+      render();
+      return { state: 'closed-unavailable' };
+    }
+
+    return { state: 'waiting' };
+  } catch (err) {
+    if (err.message === 'EXPIRED' || err.message === 'NOT_FOUND') {
+      stopReceiptPolling();
+    }
+    throw err;
+  }
+}
+
+/**
  * Starts participant receipt polling timer (~5s interval).
  */
 function startReceiptPolling() {
@@ -150,36 +211,13 @@ function startReceiptPolling() {
   receiptPollTimerId = setInterval(async () => {
     if (document.hidden || uiState !== 'receipt' || !activeRoomCode) return;
     try {
-      const pub = await apiGetPublicRoom(activeRoomCode, isDemoMode);
-      participantReturnedTotal = pub.total_votes;
-      roomStatus = pub.status;
-
-      // If valid aggregate counts are returned (or status is closed with valid counts), render revealed results
-      if (hasValidCounts(pub.counts)) {
-        roomCounts = pub.counts;
-        roomTotalVotes = pub.total_votes;
-        roomStatus = 'closed';
-        stopReceiptPolling();
-        render();
-        return;
-      }
-
-      // If room is closed but aggregate counts are missing, re-render receipt view to display honest notice
-      if (pub.status === 'closed') {
-        render();
-        return;
-      }
-
+      await refreshParticipantRoomState();
       const offlineStatusEl = document.getElementById('receipt-offline-status');
       if (offlineStatusEl) offlineStatusEl.textContent = '';
     } catch (err) {
-      if (err.message === 'EXPIRED' || err.message === 'NOT_FOUND') {
-        stopReceiptPolling();
-      } else {
-        const offlineStatusEl = document.getElementById('receipt-offline-status');
-        if (offlineStatusEl) {
-          offlineStatusEl.innerHTML = `<p class="action-microcopy" style="margin-top: 0.5rem;">${COPY.receipt.offlineNotice}</p>`;
-        }
+      const offlineStatusEl = document.getElementById('receipt-offline-status');
+      if (offlineStatusEl) {
+        offlineStatusEl.innerHTML = `<p class="action-microcopy" style="margin-top: 0.5rem;">${COPY.receipt.offlineNotice}</p>`;
       }
     }
   }, 5000);
@@ -444,20 +482,21 @@ function renderVotingView() {
         <legend class="sr-only">${COPY.voting.heading}</legend>
         <div class="options-grid">
           ${CANONICAL_OPTIONS.map(opt => `
-            <div class="option-card-wrapper">
-              <input 
-                type="radio" 
-                name="pulse-option" 
-                id="opt-${opt.id}" 
-                value="${opt.id}" 
-                class="sr-only option-radio-input"
-                ${selectedOptionId === opt.id ? 'checked' : ''}
-              >
-              <label for="opt-${opt.id}" class="option-card" style="--opt-accent: ${opt.colorVar};">
-                <span class="option-radio-visual" aria-hidden="true"></span>
-                ${OPTION_SYMBOLS[opt.id]}
+            <div class="option-tile" data-id="${opt.id}">
+              <label for="opt-${opt.id}" class="option-label ${selectedOptionId === opt.id ? 'is-selected' : ''}">
+                <div class="option-header">
+                  ${OPTION_SYMBOLS[opt.id]}
+                  <input 
+                    type="radio" 
+                    name="pulse-option" 
+                    id="opt-${opt.id}" 
+                    value="${opt.id}" 
+                    class="native-radio"
+                    ${selectedOptionId === opt.id ? 'checked' : ''}
+                  >
+                </div>
                 <span class="option-title">${opt.label}</span>
-                <span class="option-desc option-desc-inline">${opt.supportingText}</span>
+                <span class="option-desc">${opt.supportingText}</span>
               </label>
             </div>
           `).join('')}
@@ -485,6 +524,9 @@ function renderVotingView() {
     radio.addEventListener('change', (e) => {
       selectedOptionId = e.target.value;
       submitBtn.disabled = false;
+      form.querySelectorAll('.option-label').forEach(lbl => lbl.classList.remove('is-selected'));
+      const selectedLabel = form.querySelector(`label[for="opt-${selectedOptionId}"]`);
+      if (selectedLabel) selectedLabel.classList.add('is-selected');
     });
   });
 
@@ -563,8 +605,45 @@ function renderReceiptView() {
       </p>
     </div>
 
+    <div style="margin-top: 1rem;">
+      <button id="btn-refresh-participant" class="btn btn-secondary">${COPY.receipt.refreshBtnParticipant}</button>
+      <div id="participant-refresh-status" class="inline-status" role="status" aria-live="polite"></div>
+    </div>
+
     <div id="receipt-offline-status" role="status" aria-live="polite"></div>
   `;
+
+  const refreshBtn = document.getElementById('btn-refresh-participant');
+  const statusEl = document.getElementById('participant-refresh-status');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', async () => {
+      refreshBtn.disabled = true;
+      refreshBtn.textContent = COPY.receipt.refreshBtnLoading;
+      if (statusEl) {
+        statusEl.textContent = '';
+        statusEl.classList.remove('is-error');
+      }
+      try {
+        const res = await refreshParticipantRoomState();
+        if (res && res.state === 'waiting') {
+          refreshBtn.disabled = false;
+          refreshBtn.textContent = COPY.receipt.refreshBtnParticipant;
+          if (statusEl) statusEl.textContent = COPY.receipt.refreshStatusWaiting;
+        } else if (res && res.state === 'closed-unavailable') {
+          refreshBtn.disabled = false;
+          refreshBtn.textContent = COPY.receipt.refreshBtnParticipant;
+          if (statusEl) statusEl.textContent = COPY.receipt.closedWithoutCountsNotice;
+        }
+      } catch (_) {
+        refreshBtn.disabled = false;
+        refreshBtn.textContent = COPY.receipt.refreshBtnParticipant;
+        if (statusEl) {
+          statusEl.textContent = COPY.receipt.offlineNotice;
+          statusEl.classList.add('is-error');
+        }
+      }
+    });
+  }
 }
 
 /**
@@ -661,6 +740,7 @@ function renderFacilitatorDashboardView() {
           <button id="btn-copy-link" class="btn btn-secondary btn-sm">${COPY.facilitatorDashboard.copyLinkBtn}</button>
         </div>
       </div>
+      <div id="facilitator-copy-status" class="inline-status" role="status" aria-live="polite"></div>
     </div>
 
     <!-- STEP 2: Affichez les résultats -->
@@ -687,6 +767,7 @@ function renderFacilitatorDashboardView() {
           </button>
         </div>
       </div>
+      <div id="facilitator-refresh-status" class="inline-status" role="status" aria-live="polite"></div>
     </div>
 
     ${isSmallGroupConfirmOpen ? `
@@ -708,25 +789,44 @@ function renderFacilitatorDashboardView() {
     ` : ''}
   `;
 
-  document.getElementById('btn-copy-code').addEventListener('click', () => {
-    navigator.clipboard.writeText(activeRoomCode);
-    announce(COPY.facilitatorDashboard.codeCopied);
+  document.getElementById('btn-copy-code').addEventListener('click', (e) => {
+    copyWithFeedback(e.currentTarget, activeRoomCode, COPY.facilitatorDashboard.codeCopied);
   });
 
-  document.getElementById('btn-copy-link').addEventListener('click', () => {
-    navigator.clipboard.writeText(shareLink);
-    announce(COPY.facilitatorDashboard.linkCopied);
+  document.getElementById('btn-copy-link').addEventListener('click', (e) => {
+    copyWithFeedback(e.currentTarget, shareLink, COPY.facilitatorDashboard.linkCopied);
   });
 
-  document.getElementById('btn-refresh-room').addEventListener('click', async () => {
-    try {
-      const state = await apiGetFacilitatorState(activeRoomCode, activeAdminSecret, isDemoMode);
-      roomTotalVotes = state.total;
-      roomStatus = state.status;
-      if (state.counts) roomCounts = state.counts;
-      renderDashboardStats();
-    } catch (_) {}
-  });
+  const refreshBtn = document.getElementById('btn-refresh-room');
+  const refreshStatusEl = document.getElementById('facilitator-refresh-status');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', async () => {
+      refreshBtn.disabled = true;
+      refreshBtn.textContent = COPY.facilitatorDashboard.refreshBtnLoading;
+      if (refreshStatusEl) {
+        refreshStatusEl.textContent = '';
+        refreshStatusEl.classList.remove('is-error');
+      }
+      try {
+        const state = await apiGetFacilitatorState(activeRoomCode, activeAdminSecret, isDemoMode);
+        roomTotalVotes = state.total;
+        roomStatus = state.status;
+        if (state.counts) roomCounts = state.counts;
+        renderDashboardStats();
+        if (refreshStatusEl) {
+          refreshStatusEl.textContent = COPY.facilitatorDashboard.refreshStatusUpdated;
+        }
+      } catch (_) {
+        if (refreshStatusEl) {
+          refreshStatusEl.textContent = COPY.facilitatorDashboard.refreshStatusFailed;
+          refreshStatusEl.classList.add('is-error');
+        }
+      } finally {
+        refreshBtn.disabled = false;
+        refreshBtn.textContent = COPY.facilitatorDashboard.refreshBtn;
+      }
+    });
+  }
 
   const revealBtn = document.getElementById('btn-reveal-results');
 
@@ -821,9 +921,43 @@ function renderFacilitatorRevealedView() {
 
     <div class="action-bar" style="margin-top: 2rem;">
       <button id="btn-create-new-session" class="btn btn-primary">${COPY.results.newSessionBtn}</button>
+      <button id="btn-refresh-results" class="btn btn-secondary">${COPY.results.refreshBtn}</button>
       <button id="btn-delete-session-init" class="btn btn-secondary u-color-danger">${COPY.results.deleteBtn}</button>
     </div>
+    <div id="result-refresh-status" class="inline-status" role="status" aria-live="polite"></div>
   `;
+
+  const refreshResultsBtn = document.getElementById('btn-refresh-results');
+  const resultStatusEl = document.getElementById('result-refresh-status');
+  if (refreshResultsBtn) {
+    refreshResultsBtn.addEventListener('click', async () => {
+      refreshResultsBtn.disabled = true;
+      refreshResultsBtn.textContent = COPY.results.refreshBtnLoading;
+      if (resultStatusEl) {
+        resultStatusEl.textContent = '';
+        resultStatusEl.classList.remove('is-error');
+      }
+      try {
+        const state = await apiGetFacilitatorState(activeRoomCode, activeAdminSecret, isDemoMode);
+        if (hasValidCounts(state.counts)) {
+          roomCounts = state.counts;
+          roomTotalVotes = state.total;
+        }
+        render();
+        const newStatusEl = document.getElementById('result-refresh-status');
+        if (newStatusEl) {
+          newStatusEl.textContent = COPY.results.refreshStatusUpdated;
+        }
+      } catch (_) {
+        refreshResultsBtn.disabled = false;
+        refreshResultsBtn.textContent = COPY.results.refreshBtn;
+        if (resultStatusEl) {
+          resultStatusEl.textContent = COPY.results.refreshStatusFailed;
+          resultStatusEl.classList.add('is-error');
+        }
+      }
+    });
+  }
 
   // Primary Action: Create a new session directly
   document.getElementById('btn-create-new-session').addEventListener('click', async () => {
