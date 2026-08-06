@@ -4,38 +4,38 @@
 export const CANONICAL_OPTIONS = Object.freeze([
   {
     id: 'very-difficult',
-    label: 'Très difficile',
-    supportingText: 'J’aurais besoin de soutien.',
+    label: 'Pas bien du tout',
+    supportingText: 'Quelque chose me pèse ou j’ai très peu d’énergie.',
     colorVar: 'var(--tone-1)',
-    colorHex: '#b65345'
+    colorHex: '#D96B64'
   },
   {
     id: 'difficult',
-    label: 'Difficile',
-    supportingText: 'Quelque chose me freine.',
+    label: 'Pas très bien',
+    supportingText: 'Je ne me sens pas complètement disponible.',
     colorVar: 'var(--tone-2)',
-    colorHex: '#d0784d'
+    colorHex: '#E08A68'
   },
   {
     id: 'mixed',
     label: 'Mitigé',
-    supportingText: 'Il y a du bon et du moins bon.',
+    supportingText: 'J’ai des ressentis partagés.',
     colorVar: 'var(--tone-3)',
-    colorHex: '#bd9b3f'
+    colorHex: '#E5B365'
   },
   {
     id: 'good',
-    label: 'Bien',
-    supportingText: 'Je me sens plutôt bien.',
+    label: 'Plutôt bien',
+    supportingText: 'Je me sens disponible pour commencer.',
     colorVar: 'var(--tone-4)',
-    colorHex: '#4f9270'
+    colorHex: '#84A98C'
   },
   {
     id: 'very-good',
     label: 'Très bien',
-    supportingText: 'J’arrive avec beaucoup d’énergie.',
+    supportingText: 'J’arrive avec de l’énergie.',
     colorVar: 'var(--tone-5)',
-    colorHex: '#1d766c'
+    colorHex: '#2F7C6E'
   }
 ]);
 

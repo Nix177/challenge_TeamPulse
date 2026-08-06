@@ -160,7 +160,7 @@ $$;
 COMMENT ON FUNCTION public.tp_create_room(TEXT, TEXT, INT) IS 'team-pulse:v1';
 
 
--- Function 2: tp_get_public_room (Returns status & total count ONLY)
+-- Function 2: tp_get_public_room (Returns status & total count when open; includes aggregated counts once closed)
 CREATE OR REPLACE FUNCTION public.tp_get_public_room(
   p_code TEXT
 )
@@ -171,7 +171,7 @@ SET search_path = ''
 AS $$
 DECLARE
   v_room team_pulse_private.rooms%ROWTYPE;
-  v_total INT;
+  v_counts team_pulse_private.room_counts%ROWTYPE;
   v_normalized_code TEXT;
 BEGIN
   v_normalized_code := pg_catalog.upper(pg_catalog.btrim(p_code));
@@ -185,16 +185,28 @@ BEGIN
     RAISE EXCEPTION 'ROOM_EXPIRED';
   END IF;
 
-  IF v_room.status = 'closed' THEN
-    RAISE EXCEPTION 'ROOM_CLOSED';
-  END IF;
+  SELECT * INTO v_counts FROM team_pulse_private.room_counts WHERE room_id = v_room.id;
 
-  SELECT total INTO v_total FROM team_pulse_private.room_counts WHERE room_id = v_room.id;
+  IF v_room.status = 'closed' THEN
+    RETURN pg_catalog.jsonb_build_object(
+      'code', v_room.code,
+      'status', v_room.status,
+      'total_votes', COALESCE(v_counts.total, 0),
+      'counts', pg_catalog.jsonb_build_object(
+        'very-difficult', COALESCE(v_counts.very_difficult, 0),
+        'difficult', COALESCE(v_counts.difficult, 0),
+        'mixed', COALESCE(v_counts.mixed, 0),
+        'good', COALESCE(v_counts.good, 0),
+        'very-good', COALESCE(v_counts.very_good, 0),
+        'total', COALESCE(v_counts.total, 0)
+      )
+    );
+  END IF;
 
   RETURN pg_catalog.jsonb_build_object(
     'code', v_room.code,
     'status', v_room.status,
-    'total_votes', COALESCE(v_total, 0)
+    'total_votes', COALESCE(v_counts.total, 0)
   );
 END;
 $$;

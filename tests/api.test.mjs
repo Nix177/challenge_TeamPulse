@@ -22,12 +22,12 @@ test('Full multi-device room backend lifecycle with tp_* RPCs (create, join, sub
   assert.equal(createRes.success, true);
   assert.equal(createRes.code, code);
 
-  // 2. Participant A joins room via tp_get_public_room
+  // 2. Participant A joins room via tp_get_public_room while open
   const publicState1 = await apiGetPublicRoom(code, isDemo);
   assert.equal(publicState1.code, code);
   assert.equal(publicState1.status, 'open');
   assert.equal(publicState1.total_votes, 0);
-  assert.equal(publicState1.counts, undefined, 'Public room API must NEVER expose option counts!');
+  assert.equal(publicState1.counts, undefined, 'Public room API must NEVER expose option counts while open!');
 
   // 3. Participant A submits vote for 'good' via tp_submit_vote
   const voteResA = await apiSubmitVote(code, 'good', tokenParticipantA, isDemo);
@@ -47,7 +47,7 @@ test('Full multi-device room backend lifecycle with tp_* RPCs (create, join, sub
   assert.equal(voteResB.success, true);
   assert.equal(voteResB.total, 2);
 
-  // 6. Public room query still shows ONLY total votes = 2, NO option counts
+  // 6. Public room query while open still shows ONLY total votes = 2, NO option counts
   const publicState2 = await apiGetPublicRoom(code, isDemo);
   assert.equal(publicState2.total_votes, 2);
   assert.equal(publicState2.counts, undefined);
@@ -67,11 +67,18 @@ test('Full multi-device room backend lifecycle with tp_* RPCs (create, join, sub
   assert.equal(facilitatorState.counts['good'], 1);
   assert.equal(facilitatorState.counts['very-difficult'], 1);
 
-  // 9. Close Room via tp_close_room
+  // 9. Close Room / Reveal Results via tp_close_room
   const closeRes = await apiCloseRoom(code, adminSecret, isDemo);
   assert.equal(closeRes.success, true);
 
-  // 10. New vote after room closure is rejected
+  // 10. Public room query after reveal returns status 'closed' AND aggregated counts
+  const publicStateRevealed = await apiGetPublicRoom(code, isDemo);
+  assert.equal(publicStateRevealed.status, 'closed');
+  assert.equal(publicStateRevealed.total_votes, 2);
+  assert.ok(publicStateRevealed.counts, 'Public room API must include aggregated counts once revealed');
+  assert.equal(publicStateRevealed.counts['good'], 1);
+
+  // 11. New vote after room closure is rejected
   await assert.rejects(
     async () => {
       await apiSubmitVote(code, 'good', 'token_participant_c', isDemo);
@@ -79,11 +86,11 @@ test('Full multi-device room backend lifecycle with tp_* RPCs (create, join, sub
     (err) => err.message === 'CLOSED' && err.httpStatus === 400
   );
 
-  // 11. Delete Room via tp_delete_room
+  // 12. Delete Room via tp_delete_room
   const deleteRes = await apiDeleteRoom(code, adminSecret, isDemo);
   assert.equal(deleteRes.success, true);
 
-  // 12. Querying deleted room returns NOT_FOUND
+  // 13. Querying deleted room returns NOT_FOUND
   await assert.rejects(
     async () => {
       await apiGetPublicRoom(code, isDemo);

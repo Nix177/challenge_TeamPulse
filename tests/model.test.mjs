@@ -13,10 +13,10 @@ import {
 test('Canonical options exist in exact order with expected IDs and labels', () => {
   assert.equal(CANONICAL_OPTIONS.length, 5);
   const expected = [
-    { id: 'very-difficult', label: 'Très difficile' },
-    { id: 'difficult', label: 'Difficile' },
+    { id: 'very-difficult', label: 'Pas bien du tout' },
+    { id: 'difficult', label: 'Pas très bien' },
     { id: 'mixed', label: 'Mitigé' },
-    { id: 'good', label: 'Bien' },
+    { id: 'good', label: 'Plutôt bien' },
     { id: 'very-good', label: 'Très bien' }
   ];
   expected.forEach((exp, idx) => {

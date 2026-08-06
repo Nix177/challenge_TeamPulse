@@ -1092,8 +1092,116 @@ body {
   .pulse-node-latest {
     animation: none !important;
   }
-  .pulse-line, .pulse-node, .live-pulse-badge-count {
+  .pulse-line, .pulse-node, .live-pulse-badge-count, .stacked-bar-segment {
     transition: none !important;
   }
 }
+
+/* Horizontal 100% Stacked Bar Chart */
+.stacked-bar-container {
+  width: 100%;
+  margin: 1.5rem 0 2rem 0;
+}
+
+.stacked-bar-track {
+  display: flex;
+  height: 36px;
+  width: 100%;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--canvas-deep);
+  border: 1px solid var(--line);
+}
+
+.stacked-bar-segment {
+  height: 100%;
+  transition: width var(--transition-reveal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.stacked-legend-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.stacked-legend-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.stacked-legend-label-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.stacked-legend-color-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.stacked-legend-label {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--ink);
+}
+
+.stacked-legend-metrics {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  font-size: 0.9rem;
+}
+
+.stacked-legend-count {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.stacked-legend-pct {
+  color: var(--ink-soft);
+  min-width: 40px;
+  text-align: right;
+}
+
+/* Confirmation Modal Backdrop */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(23, 35, 30, 0.45);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal-card {
+  background: var(--surface-raised);
+  border-radius: var(--radius-lg);
+  padding: 2rem;
+  max-width: 480px;
+  width: 100%;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--line);
+}
+
 

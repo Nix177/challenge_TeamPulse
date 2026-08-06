@@ -2,17 +2,15 @@ import { CANONICAL_OPTIONS } from './options.js';
 import {
   createEmptyCounts,
   getTotalVotes,
-  getPercentages,
   createDemoCounts
 } from './model.js';
-import { calculateInsight } from './insight.js';
+import { FACILITATION_PROMPT } from './insight.js';
 import {
   COPY,
   formatRoomResponseCount
 } from './copy.js';
 import {
-  generatePulseDataVisualization,
-  renderParticipationPulseSvg
+  generateStackedBarVisualization
 } from './visualisation.js';
 import {
   generateRoomCode,
@@ -53,8 +51,9 @@ let roomCounts = createEmptyCounts();
 let selectedOptionId = null;
 let userSubmittedOptionId = null;
 let participantReturnedTotal = 0;
+let isSmallGroupConfirmOpen = false;
 
-// UI States: 'landing' | 'unconfigured' | 'voting' | 'confirming' | 'receipt' | 'facilitator-create' | 'facilitator-dashboard' | 'facilitator-closed' | 'facilitator-revealed' | 'facilitator-delete-confirm'
+// UI States: 'landing' | 'unconfigured' | 'voting' | 'receipt' | 'facilitator-dashboard' | 'facilitator-revealed' | 'facilitator-delete-confirm'
 let uiState = 'landing';
 let errorMessage = null;
 let pollTimerId = null;
@@ -66,7 +65,6 @@ const isDemoMode = searchParams.get('demo') === '1';
 
 /* DOM Elements */
 const viewCardEl = document.getElementById('view-card');
-const headerFacilitatorContainerEl = document.getElementById('header-facilitator-container');
 const ariaAnnounceEl = document.getElementById('aria-announce');
 const demoContainerEl = document.getElementById('demo-container');
 
@@ -136,7 +134,6 @@ function startPolling() {
       roomTotalVotes = state.total;
       roomStatus = state.status;
       if (state.counts) roomCounts = state.counts;
-      renderHeaderButton();
       renderDashboardStats();
     } catch (_) {}
   }, 5000);
@@ -155,34 +152,21 @@ function startReceiptPolling() {
       const pub = await apiGetPublicRoom(activeRoomCode, isDemoMode);
       participantReturnedTotal = pub.total_votes;
 
-      const svgContainer = document.getElementById('receipt-live-pulse-container');
-      const countEl = document.getElementById('receipt-live-count');
+      // If results are revealed (pub.counts returned or status closed), switch to revealed result view
+      if (pub.counts || pub.status === 'closed') {
+        if (pub.counts) roomCounts = pub.counts;
+        roomTotalVotes = pub.total_votes;
+        roomStatus = 'closed';
+        stopReceiptPolling();
+        render();
+        return;
+      }
+
       const offlineStatusEl = document.getElementById('receipt-offline-status');
-      const closedNoticeEl = document.getElementById('receipt-closed-notice');
-
-      if (svgContainer) {
-        svgContainer.innerHTML = renderParticipationPulseSvg(pub.total_votes);
-      }
-      if (countEl) {
-        countEl.textContent = formatRoomResponseCount(pub.total_votes);
-      }
-      if (offlineStatusEl) {
-        offlineStatusEl.textContent = '';
-      }
-
-      if (pub.status === 'closed') {
-        stopReceiptPolling();
-        if (closedNoticeEl) {
-          closedNoticeEl.innerHTML = `<div class="warning-box" role="alert" style="margin-top: 1.25rem;">${COPY.receipt.closedNotice}</div>`;
-        }
-      }
+      if (offlineStatusEl) offlineStatusEl.textContent = '';
     } catch (err) {
-      if (err.message === 'CLOSED' || err.message === 'EXPIRED' || err.message === 'NOT_FOUND') {
+      if (err.message === 'EXPIRED' || err.message === 'NOT_FOUND') {
         stopReceiptPolling();
-        const closedNoticeEl = document.getElementById('receipt-closed-notice');
-        if (closedNoticeEl) {
-          closedNoticeEl.innerHTML = `<div class="warning-box" role="alert" style="margin-top: 1.25rem;">${COPY.receipt.closedNotice}</div>`;
-        }
       } else {
         const offlineStatusEl = document.getElementById('receipt-offline-status');
         if (offlineStatusEl) {
@@ -194,25 +178,22 @@ function startReceiptPolling() {
 }
 
 /**
- * Updates dynamic dashboard response count and neutral pulse visual without full re-render.
+ * Updates dynamic dashboard response count display without full re-render.
  */
 function renderDashboardStats() {
-  const countEl = document.getElementById('dash-count-display');
-  const livePulseEl = document.getElementById('facilitator-live-pulse');
-  const liveCountEl = document.getElementById('facilitator-live-count');
+  const countEl = document.getElementById('facilitator-live-count');
+  const revealBtn = document.getElementById('btn-reveal-results');
 
   if (countEl) {
-    countEl.textContent = formatRoomResponseCount(roomTotalVotes);
-  }
-  if (livePulseEl) {
-    livePulseEl.innerHTML = renderParticipationPulseSvg(roomTotalVotes);
-  }
-  if (liveCountEl) {
     const text = roomTotalVotes > 0 ? formatRoomResponseCount(roomTotalVotes) : COPY.facilitatorDashboard.emptyState;
-    if (liveCountEl.textContent !== text) {
-      liveCountEl.textContent = text;
+    if (countEl.textContent !== text) {
+      countEl.textContent = text;
       announce(text);
     }
+  }
+
+  if (revealBtn) {
+    revealBtn.disabled = roomTotalVotes <= 0;
   }
 }
 
@@ -259,7 +240,7 @@ async function initApp() {
       roomStatus = state.status;
       roomTotalVotes = state.total;
       if (state.counts) roomCounts = state.counts;
-      uiState = state.status === 'closed' ? 'facilitator-closed' : 'facilitator-dashboard';
+      uiState = state.status === 'closed' ? 'facilitator-revealed' : 'facilitator-dashboard';
     } catch (err) {
       if (err.message === 'UNCONFIGURED_BACKEND') {
         uiState = 'unconfigured';
@@ -280,13 +261,16 @@ async function initApp() {
     try {
       const pub = await apiGetPublicRoom(activeRoomCode, isDemoMode);
       roomStatus = pub.status;
-      uiState = 'voting';
+      roomTotalVotes = pub.total_votes;
+      if (pub.counts) {
+        roomCounts = pub.counts;
+        uiState = 'receipt';
+      } else {
+        uiState = 'voting';
+      }
     } catch (err) {
       if (err.message === 'UNCONFIGURED_BACKEND') {
         uiState = 'unconfigured';
-      } else if (err.message === 'CLOSED') {
-        errorMessage = COPY.landing.errors.closed;
-        uiState = 'landing';
       } else if (err.message === 'EXPIRED') {
         errorMessage = COPY.landing.errors.expired;
         uiState = 'landing';
@@ -301,53 +285,14 @@ async function initApp() {
 }
 
 /**
- * Header Action Button Handler (Facilitator vs Participant view toggling)
- */
-function renderHeaderButton() {
-  if (!headerFacilitatorContainerEl) return;
-
-  if (uiState === 'facilitator-dashboard' || uiState === 'facilitator-closed' || uiState === 'facilitator-revealed') {
-    headerFacilitatorContainerEl.innerHTML = `
-      <button id="btn-header-action" class="btn btn-secondary btn-sm">
-        ${COPY.brand.joinAction}
-      </button>
-    `;
-    document.getElementById('btn-header-action').addEventListener('click', () => {
-      stopAllPolling();
-      activeRoomCode = null;
-      activeAdminSecret = null;
-      selectedOptionId = null;
-      userSubmittedOptionId = null;
-      window.history.pushState(null, '', window.location.pathname);
-      uiState = 'landing';
-      render();
-      focusCardHeading();
-    });
-  } else {
-    headerFacilitatorContainerEl.innerHTML = `
-      <button id="btn-header-action" class="btn btn-secondary btn-sm">
-        ${COPY.brand.facilitatorAction}
-      </button>
-    `;
-    document.getElementById('btn-header-action').addEventListener('click', () => {
-      stopAllPolling();
-      uiState = 'facilitator-create';
-      render();
-      focusCardHeading();
-    });
-  }
-}
-
-/**
  * View 1: Room Selection / Landing Screen
  */
 function renderLandingView() {
   viewCardEl.innerHTML = `
-    <span class="step-badge">Connexion</span>
     <h2 class="main-heading">${COPY.landing.heading}</h2>
     <p class="subheading">${COPY.landing.body}</p>
 
-    ${errorMessage ? `<div class="warning-box" role="alert">${errorMessage}</div>` : ''}
+    ${errorMessage ? `<div class="warning-box" role="alert" style="margin-bottom: 1.5rem;">${errorMessage}</div>` : ''}
 
     <form id="room-entry-form" class="room-code-form">
       <div class="form-group">
@@ -366,20 +311,48 @@ function renderLandingView() {
       </div>
       <div class="action-bar">
         <button type="submit" class="btn btn-primary">${COPY.landing.submitBtn}</button>
-        <button type="button" id="btn-goto-create" class="btn btn-secondary">${COPY.landing.createSessionBtn}</button>
+        <button type="button" id="btn-direct-create" class="btn btn-secondary">${COPY.landing.createSessionBtn}</button>
       </div>
     </form>
   `;
 
   const form = document.getElementById('room-entry-form');
   const codeInput = document.getElementById('input-room-code');
-  const gotoCreateBtn = document.getElementById('btn-goto-create');
+  const directCreateBtn = document.getElementById('btn-direct-create');
 
-  gotoCreateBtn.addEventListener('click', () => {
+  // Direct session creation from landing page
+  directCreateBtn.addEventListener('click', async () => {
     errorMessage = null;
-    uiState = 'facilitator-create';
-    render();
-    focusCardHeading();
+    directCreateBtn.disabled = true;
+    directCreateBtn.textContent = COPY.landing.creatingBtn;
+
+    const code = generateRoomCode();
+    const adminSecret = generateAdminSecret();
+
+    try {
+      await apiCreateRoom(code, adminSecret, 12, isDemoMode);
+      activeRoomCode = code;
+      activeAdminSecret = adminSecret;
+      roomStatus = 'open';
+      roomTotalVotes = 0;
+      roomCounts = createEmptyCounts();
+
+      window.history.pushState(null, '', buildFacilitatorUrl(code, adminSecret));
+
+      uiState = 'facilitator-dashboard';
+      announce(COPY.facilitatorDashboard.heading);
+      render();
+      focusCardHeading();
+    } catch (err) {
+      if (err.message === 'UNCONFIGURED_BACKEND') {
+        uiState = 'unconfigured';
+        render();
+      } else {
+        errorMessage = COPY.landing.errors.createFailed;
+        render();
+        focusCardHeading();
+      }
+    }
   });
 
   form.addEventListener('submit', async (e) => {
@@ -398,18 +371,24 @@ function renderLandingView() {
       const pub = await apiGetPublicRoom(code, isDemoMode);
       activeRoomCode = pub.code;
       roomStatus = pub.status;
+      roomTotalVotes = pub.total_votes;
       errorMessage = null;
 
       window.history.pushState(null, '', buildParticipantUrl(activeRoomCode));
-      uiState = 'voting';
+      
+      if (pub.counts || pub.status === 'closed') {
+        if (pub.counts) roomCounts = pub.counts;
+        uiState = 'receipt';
+      } else {
+        uiState = 'voting';
+      }
+
       announce(`Session ${activeRoomCode} rejointe.`);
       render();
       focusCardHeading();
     } catch (err) {
       if (err.message === 'UNCONFIGURED_BACKEND') {
         uiState = 'unconfigured';
-      } else if (err.message === 'CLOSED') {
-        errorMessage = COPY.landing.errors.closed;
       } else if (err.message === 'EXPIRED') {
         errorMessage = COPY.landing.errors.expired;
       } else if (err.message === 'NOT_FOUND') {
@@ -428,7 +407,6 @@ function renderLandingView() {
  */
 function renderUnconfiguredView() {
   viewCardEl.innerHTML = `
-    <span class="step-badge">Configuration</span>
     <h2 class="main-heading">Base de données non connectée</h2>
     <div class="warning-box" role="alert">
       Les identifiants Supabase réels ne sont pas configurés dans <code>src/config.js</code>.
@@ -443,13 +421,15 @@ function renderUnconfiguredView() {
 }
 
 /**
- * View 2: Participant Voting Questionnaire
+ * View 2: Participant Voting Questionnaire (Single-step submission, formal "vous")
  */
 function renderVotingView() {
   viewCardEl.innerHTML = `
     <span class="step-badge">Session ${activeRoomCode}</span>
     <h2 class="main-heading">${COPY.voting.heading}</h2>
     <p class="subheading">${COPY.voting.supportingText}</p>
+
+    ${errorMessage ? `<div class="warning-box" role="alert" style="margin-bottom: 1.5rem;">${errorMessage}</div>` : ''}
 
     <form id="voting-form">
       <fieldset class="options-fieldset">
@@ -476,22 +456,14 @@ function renderVotingView() {
         </div>
       </fieldset>
 
-      <div id="tablet-desc-region" class="tablet-desc-box" aria-live="polite">
-        <p class="${selectedOptionId ? '' : 'tablet-desc-placeholder'}">
-          ${selectedOptionId 
-            ? CANONICAL_OPTIONS.find(o => o.id === selectedOptionId)?.supportingText 
-            : COPY.voting.tabletDefaultDesc}
-        </p>
-      </div>
-
       <div class="action-bar">
         <button 
           type="submit" 
-          id="btn-continue" 
+          id="btn-submit-vote" 
           class="btn btn-primary"
           ${selectedOptionId ? '' : 'disabled'}
         >
-          ${COPY.voting.continueBtn}
+          ${COPY.voting.submitBtn}
         </button>
         <span class="action-microcopy">${COPY.voting.microcopy}</span>
       </div>
@@ -499,75 +471,24 @@ function renderVotingView() {
   `;
 
   const form = document.getElementById('voting-form');
-  const continueBtn = document.getElementById('btn-continue');
-  const tabletDescText = document.getElementById('tablet-desc-region')?.querySelector('p');
+  const submitBtn = document.getElementById('btn-submit-vote');
 
   form.querySelectorAll('input[name="pulse-option"]').forEach(radio => {
     radio.addEventListener('change', (e) => {
       selectedOptionId = e.target.value;
-      continueBtn.disabled = false;
-      const opt = CANONICAL_OPTIONS.find(o => o.id === selectedOptionId);
-      if (tabletDescText && opt) {
-        tabletDescText.textContent = opt.supportingText;
-        tabletDescText.classList.remove('tablet-desc-placeholder');
-      }
+      submitBtn.disabled = false;
     });
   });
 
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!selectedOptionId) return;
-    uiState = 'confirming';
-    announce('Étape de vérification.');
-    render();
-    focusCardHeading();
-  });
-}
 
-/**
- * View 3: Participant Confirmation Screen
- */
-function renderConfirmingView() {
-  const selectedOpt = CANONICAL_OPTIONS.find(o => o.id === selectedOptionId);
-  if (!selectedOpt) {
-    uiState = 'voting';
-    render();
-    return;
-  }
+    errorMessage = null;
+    submitBtn.disabled = true;
+    submitBtn.textContent = COPY.voting.submittingBtn;
+    form.querySelectorAll('input[name="pulse-option"]').forEach(r => r.disabled = true);
 
-  viewCardEl.innerHTML = `
-    <span class="step-badge">Session ${activeRoomCode}</span>
-    <h2 class="main-heading">${COPY.confirmation.heading}</h2>
-    <p class="subheading">${COPY.confirmation.formatSupportingText(activeRoomCode)}</p>
-
-    <div class="confirmation-summary-card" style="--summary-accent: ${selectedOpt.colorVar};">
-      ${OPTION_SYMBOLS[selectedOpt.id]}
-      <div>
-        <h3 class="option-title confirmation-title">${selectedOpt.label}</h3>
-        <p class="option-desc confirmation-desc">${selectedOpt.supportingText}</p>
-      </div>
-    </div>
-
-    <div class="info-explanation-block">
-      <h4 class="info-explanation-title">${COPY.confirmation.infoBlockHeading}</h4>
-      <p class="info-explanation-body">${COPY.confirmation.infoBlockBody}</p>
-      <p class="info-explanation-privacy">${COPY.confirmation.networkExplanation}</p>
-    </div>
-
-    <div class="action-bar">
-      <button id="btn-confirm-vote" class="btn btn-primary">${COPY.confirmation.confirmBtn}</button>
-      <button id="btn-modify-choice" class="btn btn-secondary">${COPY.confirmation.modifyBtn}</button>
-    </div>
-  `;
-
-  document.getElementById('btn-modify-choice').addEventListener('click', () => {
-    uiState = 'voting';
-    announce('Retour au choix.');
-    render();
-    focusCardHeading();
-  });
-
-  document.getElementById('btn-confirm-vote').addEventListener('click', async () => {
     try {
       userSubmittedOptionId = selectedOptionId;
       const token = getOrCreateParticipantToken(activeRoomCode);
@@ -578,12 +499,16 @@ function renderConfirmingView() {
       render();
       focusCardHeading();
     } catch (err) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = COPY.voting.submitBtn;
+      form.querySelectorAll('input[name="pulse-option"]').forEach(r => r.disabled = false);
+
       if (err.message === 'ALREADY_SUBMITTED') {
         errorMessage = COPY.receipt.alreadySubmitted;
+        uiState = 'receipt';
       } else {
         errorMessage = COPY.landing.errors.network;
       }
-      uiState = 'receipt';
       render();
       focusCardHeading();
     }
@@ -591,29 +516,23 @@ function renderConfirmingView() {
 }
 
 /**
- * View 4: Participant Submission Receipt Screen (Live Participation Visual)
+ * View 3: Participant Receipt View (Waiting or Revealed Results)
  */
 function renderReceiptView() {
-  if (errorMessage) {
-    viewCardEl.innerHTML = `
-      <span class="step-badge">Session ${activeRoomCode}</span>
-      <h2 class="main-heading">${COPY.receipt.heading}</h2>
-      <div class="warning-box" role="alert" style="margin-bottom: 2rem;">
-        ${errorMessage}
-      </div>
-      <p class="receipt-explanation-text">${COPY.receipt.privacyExplanation}</p>
-      <p style="margin-top: 1.5rem; font-weight: 600;">${COPY.receipt.closingInstruction}</p>
-    `;
+  const selectedOpt = CANONICAL_OPTIONS.find(o => o.id === selectedOptionId || o.id === userSubmittedOptionId);
+
+  // If results have been revealed (counts available in roomCounts or status is closed), show final collective result
+  if (roomStatus === 'closed' || (roomCounts && getTotalVotes(roomCounts) > 0 && roomCounts['very-difficult'] !== undefined)) {
+    renderParticipantRevealedView(selectedOpt);
     return;
   }
-
-  const selectedOpt = CANONICAL_OPTIONS.find(o => o.id === selectedOptionId || o.id === userSubmittedOptionId);
-  const liveTotal = participantReturnedTotal || roomTotalVotes || 1;
 
   viewCardEl.innerHTML = `
     <span class="step-badge">Session ${activeRoomCode}</span>
     <h2 class="main-heading">${COPY.receipt.heading}</h2>
-    <p class="receipt-primary-body">${COPY.receipt.formatBody(activeRoomCode)}</p>
+    <p class="subheading">${COPY.receipt.body}</p>
+
+    ${errorMessage ? `<div class="warning-box" role="alert" style="margin-bottom: 1.5rem;">${errorMessage}</div>` : ''}
 
     ${selectedOpt ? `
       <div class="participant-receipt-choice-box">
@@ -625,142 +544,158 @@ function renderReceiptView() {
       </div>
     ` : ''}
 
-    <div class="participation-pulse-container">
-      <div id="receipt-live-pulse-container" style="width: 100%;">
-        ${renderParticipationPulseSvg(liveTotal)}
-      </div>
-      <div id="receipt-live-count" class="live-pulse-badge-count">
-        ${formatRoomResponseCount(liveTotal)}
-      </div>
-      <p class="live-pulse-subtext">${COPY.receipt.waitingStatement}</p>
+    <div class="info-explanation-block" style="margin: 1.5rem 0;">
+      <p class="info-explanation-body" style="font-weight: 600; color: var(--accent-strong);">
+        ${COPY.receipt.waitingStatement}
+      </p>
+      <p class="info-explanation-privacy" style="margin-top: 0.5rem;">
+        ${COPY.receipt.secondaryText}
+      </p>
     </div>
 
     <div id="receipt-offline-status" role="status" aria-live="polite"></div>
-    <div id="receipt-closed-notice"></div>
+  `;
+}
 
-    <div class="receipt-card">
-      <p class="receipt-explanation-text">${COPY.receipt.privacyExplanation}</p>
-      
-      <div class="receipt-handoff-banner" style="margin-top: 1rem;">
-        <svg class="handoff-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-          <polyline points="22 4 12 14.01 9 11.01"/>
-        </svg>
-        <span>${COPY.receipt.closingInstruction}</span>
+/**
+ * Render Revealed Collective Results for Participant
+ */
+function renderParticipantRevealedView(selectedOpt) {
+  const { total, segments } = generateStackedBarVisualization(roomCounts);
+
+  viewCardEl.innerHTML = `
+    <span class="step-badge">Session ${activeRoomCode}</span>
+    <h2 class="main-heading">${COPY.results.heading}</h2>
+    <p class="subheading">${COPY.results.formatTotal(total)}</p>
+
+    ${selectedOpt ? `
+      <div class="participant-receipt-choice-box" style="margin-bottom: 1.5rem;">
+        ${OPTION_SYMBOLS[selectedOpt.id]}
+        <div>
+          <span class="participant-receipt-choice-label">${COPY.receipt.yourChoiceLabel} ${selectedOpt.label}</span>
+          <p class="participant-receipt-choice-desc">${selectedOpt.supportingText}</p>
+        </div>
+      </div>
+    ` : ''}
+
+    <div class="visualisation-card">
+      <div class="stacked-bar-container">
+        <div class="stacked-bar-track" aria-label="Répartition du groupe: ${segments.map(s => `${s.label} ${s.percentage}%`).join(', ')}">
+          ${segments.map(s => s.percentage > 0 ? `
+            <div 
+              class="stacked-bar-segment" 
+              style="width: ${s.percentage}%; background-color: ${s.colorHex};"
+              title="${s.label} : ${s.count} (${s.percentage}%)"
+            >
+              ${s.percentage >= 8 ? `${s.percentage}%` : ''}
+            </div>
+          ` : '').join('')}
+        </div>
+
+        <div class="stacked-legend-list">
+          ${segments.map(s => `
+            <div class="stacked-legend-item">
+              <div class="stacked-legend-label-group">
+                <span class="stacked-legend-color-dot" style="background-color: ${s.colorHex};"></span>
+                ${OPTION_SYMBOLS[s.id]}
+                <span class="stacked-legend-label">${s.label}</span>
+              </div>
+              <div class="stacked-legend-metrics">
+                <span class="stacked-legend-count">${s.count}</span>
+                <span class="stacked-legend-pct">${s.percentage}%</span>
+              </div>
+            </div>
+          `).join('')}
+        </div>
       </div>
     </div>
+
+    <div class="conversation-prompt-card" style="margin-top: 1.5rem;">
+      <h3 class="conversation-prompt-heading">${FACILITATION_PROMPT.heading}</h3>
+      <p class="conversation-prompt-text">${FACILITATION_PROMPT.text}</p>
+      <p class="conversation-instruction">${FACILITATION_PROMPT.supporting}</p>
+    </div>
   `;
 }
 
 /**
- * View 5: Facilitator Creation Screen
- */
-function renderFacilitatorCreateView() {
-  viewCardEl.innerHTML = `
-    <span class="step-badge">Facilitation</span>
-    <h2 class="main-heading">${COPY.creation.heading}</h2>
-    <p class="subheading">${COPY.creation.body}</p>
-
-    ${errorMessage ? `<div class="warning-box" role="alert" style="margin-bottom: 1.5rem;">${errorMessage}</div>` : ''}
-
-    <div class="info-explanation-block">
-      <p class="info-explanation-body">${COPY.creation.durationStatement}</p>
-    </div>
-
-    <div class="action-bar">
-      <button id="btn-create-session-submit" class="btn btn-primary">${COPY.creation.createBtn}</button>
-    </div>
-  `;
-
-  const submitBtn = document.getElementById('btn-create-session-submit');
-
-  submitBtn.addEventListener('click', async () => {
-    errorMessage = null;
-    submitBtn.disabled = true;
-    submitBtn.textContent = COPY.creation.loadingBtn;
-
-    const code = generateRoomCode();
-    const adminSecret = generateAdminSecret();
-
-    try {
-      await apiCreateRoom(code, adminSecret, 12, isDemoMode);
-      activeRoomCode = code;
-      activeAdminSecret = adminSecret;
-      roomStatus = 'open';
-      roomTotalVotes = 0;
-      roomCounts = createEmptyCounts();
-
-      window.history.pushState(null, '', buildFacilitatorUrl(code, adminSecret));
-
-      uiState = 'facilitator-dashboard';
-      announce(COPY.facilitatorDashboard.openHeading);
-      render();
-      focusCardHeading();
-    } catch (err) {
-      if (err.message === 'UNCONFIGURED_BACKEND') {
-        uiState = 'unconfigured';
-        render();
-      } else {
-        errorMessage = COPY.creation.errorMessage;
-        uiState = 'facilitator-create';
-        render();
-        focusCardHeading();
-      }
-    }
-  });
-}
-
-/**
- * View 6: Facilitator Active Dashboard (Neutral Live Pulse Visual)
+ * View 4: Facilitator Session Page ("Session prête", 2-Step Layout, One-Click Close & Reveal)
  */
 function renderFacilitatorDashboardView() {
   const shareLink = buildParticipantUrl(activeRoomCode);
   const countText = formatRoomResponseCount(roomTotalVotes);
 
   viewCardEl.innerHTML = `
-    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
-      <div>
-        <span class="step-badge">${COPY.facilitatorDashboard.statusOpen}</span>
-        <h2 class="main-heading" style="margin-bottom: 0.25rem;">${COPY.facilitatorDashboard.openHeading}</h2>
-        <p class="subheading" style="margin-bottom: 0;">${COPY.facilitatorDashboard.openInstruction}</p>
-      </div>
-      <div class="session-status-badge">
-        <span id="dash-count-display">${countText}</span>
-      </div>
-    </div>
+    <h2 class="main-heading">${COPY.facilitatorDashboard.heading}</h2>
+    <p class="subheading">${COPY.facilitatorDashboard.instruction}</p>
 
-    <div class="participation-pulse-container" style="margin-bottom: 2rem;">
-      <div id="facilitator-live-pulse" style="width: 100%;">
-        ${renderParticipationPulseSvg(roomTotalVotes)}
-      </div>
-      <div id="facilitator-live-count" class="live-pulse-badge-count">
-        ${roomTotalVotes > 0 ? countText : COPY.facilitatorDashboard.emptyState}
-      </div>
-      <p class="live-pulse-subtext">${COPY.facilitatorDashboard.privacyNote}</p>
-    </div>
-
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; margin-bottom: 2rem;">
-      <div class="receipt-card" style="margin-bottom: 0;">
-        <span class="presentation-section-title">${COPY.facilitatorDashboard.codeLabel}</span>
-        <div style="font-size: 2.5rem; font-weight: 800; letter-spacing: 0.15em; color: var(--accent-strong);">
-          ${activeRoomCode}
+    <!-- STEP 1: Partagez le lien -->
+    <div class="info-explanation-block" style="margin-bottom: 2rem;">
+      <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--ink); margin-bottom: 1rem;">
+        ${COPY.facilitatorDashboard.step1Title}
+      </h3>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem;">
+        <div style="background: var(--surface-raised); padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--line);">
+          <span class="presentation-section-title">${COPY.facilitatorDashboard.codeLabel}</span>
+          <div style="font-size: 2rem; font-weight: 800; letter-spacing: 0.12em; color: var(--accent-strong); margin: 0.25rem 0 0.5rem 0;">
+            ${activeRoomCode}
+          </div>
+          <button id="btn-copy-code" class="btn btn-secondary btn-sm">${COPY.facilitatorDashboard.copyCodeBtn}</button>
         </div>
-        <button id="btn-copy-code" class="btn btn-secondary btn-sm">${COPY.facilitatorDashboard.copyCodeBtn}</button>
-      </div>
 
-      <div class="receipt-card" style="margin-bottom: 0;">
-        <span class="presentation-section-title">${COPY.facilitatorDashboard.linkLabel}</span>
-        <div style="font-size: 0.9rem; font-weight: 600; color: var(--ink-soft); word-break: break-all; margin: 0.5rem 0;">
-          ${shareLink}
+        <div style="background: var(--surface-raised); padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--line);">
+          <span class="presentation-section-title">${COPY.facilitatorDashboard.linkLabel}</span>
+          <div style="font-size: 0.85rem; font-weight: 600; color: var(--ink-soft); word-break: break-all; margin: 0.25rem 0 0.5rem 0;">
+            ${shareLink}
+          </div>
+          <button id="btn-copy-link" class="btn btn-secondary btn-sm">${COPY.facilitatorDashboard.copyLinkBtn}</button>
         </div>
-        <button id="btn-copy-link" class="btn btn-secondary btn-sm">${COPY.facilitatorDashboard.copyLinkBtn}</button>
       </div>
     </div>
 
-    <div class="action-bar">
-      <button id="btn-close-room" class="btn btn-primary">${COPY.facilitatorDashboard.closeBtn}</button>
-      <button id="btn-refresh-room" class="btn btn-secondary">${COPY.facilitatorDashboard.refreshBtn}</button>
+    <!-- STEP 2: Affichez les résultats -->
+    <div class="info-explanation-block">
+      <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--ink); margin-bottom: 1rem;">
+        ${COPY.facilitatorDashboard.step2Title}
+      </h3>
+      
+      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+        <div id="facilitator-live-count" style="font-size: 1.5rem; font-weight: 800; color: var(--ink);">
+          ${roomTotalVotes > 0 ? countText : COPY.facilitatorDashboard.emptyState}
+        </div>
+
+        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+          <button 
+            id="btn-reveal-results" 
+            class="btn btn-primary"
+            ${roomTotalVotes > 0 ? '' : 'disabled'}
+          >
+            ${COPY.facilitatorDashboard.revealBtn}
+          </button>
+          <button id="btn-refresh-room" class="btn btn-secondary">
+            ${COPY.facilitatorDashboard.refreshBtn}
+          </button>
+        </div>
+      </div>
     </div>
+
+    ${isSmallGroupConfirmOpen ? `
+      <div class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-card">
+          <h3 id="modal-title" style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem; color: var(--ink);">
+            ${COPY.facilitatorDashboard.smallGroupConfirm.question}
+          </h3>
+          <div class="action-bar" style="margin-top: 1.5rem;">
+            <button id="btn-confirm-small-group-reveal" class="btn btn-primary">
+              ${COPY.facilitatorDashboard.smallGroupConfirm.confirmBtn}
+            </button>
+            <button id="btn-cancel-small-group-reveal" class="btn btn-secondary">
+              ${COPY.facilitatorDashboard.smallGroupConfirm.cancelBtn}
+            </button>
+          </div>
+        </div>
+      </div>
+    ` : ''}
   `;
 
   document.getElementById('btn-copy-code').addEventListener('click', () => {
@@ -780,54 +715,136 @@ function renderFacilitatorDashboardView() {
       roomStatus = state.status;
       if (state.counts) roomCounts = state.counts;
       renderDashboardStats();
-      announce(formatRoomResponseCount(roomTotalVotes));
     } catch (_) {}
   });
 
-  document.getElementById('btn-close-room').addEventListener('click', async () => {
+  const revealBtn = document.getElementById('btn-reveal-results');
+
+  const executeReveal = async () => {
+    revealBtn.disabled = true;
+    revealBtn.textContent = COPY.facilitatorDashboard.revealingBtn;
     try {
       await apiCloseRoom(activeRoomCode, activeAdminSecret, isDemoMode);
+      const state = await apiGetFacilitatorState(activeRoomCode, activeAdminSecret, isDemoMode);
       roomStatus = 'closed';
+      roomTotalVotes = state.total;
+      if (state.counts) roomCounts = state.counts;
       stopAllPolling();
-      uiState = 'facilitator-closed';
-      announce(COPY.facilitatorDashboard.closedHeading);
+      uiState = 'facilitator-revealed';
+      announce(COPY.results.heading);
       render();
       focusCardHeading();
-    } catch (_) {}
+    } catch (_) {
+      revealBtn.disabled = false;
+      revealBtn.textContent = COPY.facilitatorDashboard.revealBtn;
+    }
+  };
+
+  revealBtn.addEventListener('click', () => {
+    if (roomTotalVotes > 0 && roomTotalVotes < 3) {
+      isSmallGroupConfirmOpen = true;
+      render();
+      return;
+    }
+    executeReveal();
   });
+
+  if (isSmallGroupConfirmOpen) {
+    document.getElementById('btn-confirm-small-group-reveal')?.addEventListener('click', () => {
+      isSmallGroupConfirmOpen = false;
+      executeReveal();
+    });
+    document.getElementById('btn-cancel-small-group-reveal')?.addEventListener('click', () => {
+      isSmallGroupConfirmOpen = false;
+      render();
+    });
+  }
 }
 
 /**
- * View 7: Facilitator Closed Room State (Pre-reveal)
+ * View 5: Facilitator Revealed Results View (Horizontal 100% Stacked Bar Chart)
  */
-function renderFacilitatorClosedView() {
-  const countText = formatRoomResponseCount(roomTotalVotes);
+function renderFacilitatorRevealedView() {
+  const { total, segments } = generateStackedBarVisualization(roomCounts);
 
   viewCardEl.innerHTML = `
-    <span class="step-badge">Session ${activeRoomCode}</span>
-    <h2 class="main-heading">${COPY.facilitatorDashboard.closedHeading}</h2>
-    <p class="subheading">${COPY.facilitatorDashboard.closedBody}</p>
+    <h2 class="main-heading">${COPY.results.heading}</h2>
+    <p class="subheading" style="font-weight: 700; color: var(--accent-strong);">${COPY.results.formatTotal(total)}</p>
 
-    <div class="participation-pulse-container" style="margin-bottom: 2rem;">
-      <div id="facilitator-live-pulse" style="width: 100%;">
-        ${renderParticipationPulseSvg(roomTotalVotes)}
-      </div>
-      <div class="live-pulse-badge-count">
-        ${countText}
+    <div class="visualisation-card">
+      <div class="stacked-bar-container">
+        <div class="stacked-bar-track" aria-label="Répartition du groupe: ${segments.map(s => `${s.label} ${s.percentage}%`).join(', ')}">
+          ${segments.map(s => s.percentage > 0 ? `
+            <div 
+              class="stacked-bar-segment" 
+              style="width: ${s.percentage}%; background-color: ${s.colorHex};"
+              title="${s.label} : ${s.count} (${s.percentage}%)"
+            >
+              ${s.percentage >= 8 ? `${s.percentage}%` : ''}
+            </div>
+          ` : '').join('')}
+        </div>
+
+        <div class="stacked-legend-list">
+          ${segments.map(s => `
+            <div class="stacked-legend-item">
+              <div class="stacked-legend-label-group">
+                <span class="stacked-legend-color-dot" style="background-color: ${s.colorHex};"></span>
+                ${OPTION_SYMBOLS[s.id]}
+                <span class="stacked-legend-label">${s.label}</span>
+              </div>
+              <div class="stacked-legend-metrics">
+                <span class="stacked-legend-count">${s.count}</span>
+                <span class="stacked-legend-pct">${s.percentage}%</span>
+              </div>
+            </div>
+          `).join('')}
+        </div>
       </div>
     </div>
 
-    <div class="action-bar">
-      <button id="btn-reveal-results" class="btn btn-primary">${COPY.facilitatorDashboard.revealBtn}</button>
-      <button id="btn-delete-session-init" class="btn btn-secondary u-color-danger">${COPY.facilitatorDashboard.deleteBtn}</button>
+    <div class="conversation-prompt-card" style="margin-top: 1.5rem;">
+      <h3 class="conversation-prompt-heading">${FACILITATION_PROMPT.heading}</h3>
+      <p class="conversation-prompt-text">${FACILITATION_PROMPT.text}</p>
+      <p class="conversation-instruction">${FACILITATION_PROMPT.supporting}</p>
+    </div>
+
+    <div class="action-bar" style="margin-top: 2rem;">
+      <button id="btn-create-new-session" class="btn btn-primary">${COPY.results.newSessionBtn}</button>
+      <button id="btn-delete-session-init" class="btn btn-secondary u-color-danger">${COPY.results.deleteBtn}</button>
     </div>
   `;
 
-  document.getElementById('btn-reveal-results').addEventListener('click', () => {
-    uiState = 'facilitator-revealed';
-    announce(COPY.facilitatorRevealed.heading);
-    render();
-    focusCardHeading();
+  // Primary Action: Create a new session directly
+  document.getElementById('btn-create-new-session').addEventListener('click', async () => {
+    stopAllPolling();
+    activeRoomCode = null;
+    activeAdminSecret = null;
+    selectedOptionId = null;
+    userSubmittedOptionId = null;
+    roomTotalVotes = 0;
+    roomCounts = createEmptyCounts();
+
+    const code = generateRoomCode();
+    const adminSecret = generateAdminSecret();
+
+    try {
+      await apiCreateRoom(code, adminSecret, 12, isDemoMode);
+      activeRoomCode = code;
+      activeAdminSecret = adminSecret;
+      roomStatus = 'open';
+
+      window.history.pushState(null, '', buildFacilitatorUrl(code, adminSecret));
+      uiState = 'facilitator-dashboard';
+      announce(COPY.facilitatorDashboard.heading);
+      render();
+      focusCardHeading();
+    } catch (_) {
+      window.history.pushState(null, '', window.location.pathname);
+      uiState = 'landing';
+      render();
+      focusCardHeading();
+    }
   });
 
   document.getElementById('btn-delete-session-init').addEventListener('click', () => {
@@ -838,88 +855,10 @@ function renderFacilitatorClosedView() {
 }
 
 /**
- * View 8: Facilitator Revealed Results View (Categorical Wave Visualisation)
- */
-function renderFacilitatorRevealedView() {
-  const percentages = getPercentages(roomCounts);
-  const { pathD } = generatePulseDataVisualization(percentages);
-  const insight = calculateInsight(roomCounts);
-  const totalText = formatRoomResponseCount(roomTotalVotes);
-
-  viewCardEl.innerHTML = `
-    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
-      <div>
-        <span class="step-badge">Session ${activeRoomCode}</span>
-        <h2 class="main-heading" style="margin-bottom: 0.25rem;">${COPY.facilitatorRevealed.heading}</h2>
-        <p class="subheading" style="margin-bottom: 0;">${totalText}</p>
-      </div>
-      <button id="btn-delete-session-top" class="btn btn-secondary btn-sm u-color-danger">
-        ${COPY.facilitatorRevealed.deleteBtn}
-      </button>
-    </div>
-
-    <div class="visualisation-card">
-      <h3 class="visualisation-title">${COPY.facilitatorRevealed.distributionTitle}</h3>
-      <div class="visualisation-svg-container">
-        <svg class="visualisation-svg" viewBox="0 0 500 120" aria-hidden="true">
-          <path d="${pathD}" class="pulse-wave-path" />
-        </svg>
-      </div>
-
-      <div class="results-bars-list">
-        ${CANONICAL_OPTIONS.map(opt => {
-          const count = roomCounts[opt.id] || 0;
-          const pct = percentages[opt.id] || 0;
-          return `
-            <div class="result-bar-row">
-              <div class="result-bar-header">
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                  ${OPTION_SYMBOLS[opt.id]}
-                  <span class="result-bar-label">${opt.label}</span>
-                </div>
-                <div class="result-bar-metrics">
-                  <span class="result-bar-count">${count}</span>
-                  <span class="result-bar-pct">${pct}%</span>
-                </div>
-              </div>
-              <div class="result-bar-track">
-                <div class="result-bar-fill" style="width: ${pct}%; --bar-accent: ${opt.colorVar};"></div>
-              </div>
-            </div>
-          `;
-        }).join('')}
-      </div>
-    </div>
-
-    ${insight.observation ? `
-      <div class="observation-card">
-        <h3 class="observation-heading">${COPY.facilitatorRevealed.observationHeading}</h3>
-        <p class="observation-text">${insight.observation}</p>
-      </div>
-    ` : ''}
-
-    <div class="conversation-prompt-card">
-      <h3 class="conversation-prompt-heading">${COPY.facilitatorRevealed.conversationHeading}</h3>
-      <p class="conversation-prompt-text">${insight.prompt}</p>
-      <p class="conversation-instruction">${COPY.facilitatorRevealed.conversationInstruction}</p>
-    </div>
-
-    <p class="results-disclaimer">${COPY.facilitatorRevealed.disclaimer}</p>
-  `;
-
-  document.getElementById('btn-delete-session-top').addEventListener('click', () => {
-    uiState = 'facilitator-delete-confirm';
-    render();
-    focusCardHeading();
-  });
-}
-
-/**
- * View 9: Facilitator Permanent Session Deletion Confirmation Screen
+ * View 6: Facilitator Deletion Confirmation View
  */
 function renderFacilitatorDeleteConfirmView() {
   viewCardEl.innerHTML = `
-    <span class="step-badge">Session ${activeRoomCode}</span>
     <h2 class="main-heading">${COPY.deletionConfirmation.heading}</h2>
     <p class="subheading">${COPY.deletionConfirmation.body}</p>
 
@@ -934,7 +873,7 @@ function renderFacilitatorDeleteConfirmView() {
   `;
 
   document.getElementById('btn-cancel-delete').addEventListener('click', () => {
-    uiState = roomStatus === 'closed' ? 'facilitator-closed' : 'facilitator-dashboard';
+    uiState = 'facilitator-revealed';
     render();
     focusCardHeading();
   });
@@ -963,7 +902,6 @@ function renderFacilitatorDeleteConfirmView() {
  */
 function render() {
   stopAllPolling();
-  renderHeaderButton();
 
   switch (uiState) {
     case 'landing':
@@ -975,22 +913,13 @@ function render() {
     case 'voting':
       renderVotingView();
       break;
-    case 'confirming':
-      renderConfirmingView();
-      break;
     case 'receipt':
       renderReceiptView();
       startReceiptPolling();
       break;
-    case 'facilitator-create':
-      renderFacilitatorCreateView();
-      break;
     case 'facilitator-dashboard':
       renderFacilitatorDashboardView();
       startPolling();
-      break;
-    case 'facilitator-closed':
-      renderFacilitatorClosedView();
       break;
     case 'facilitator-revealed':
       renderFacilitatorRevealedView();
