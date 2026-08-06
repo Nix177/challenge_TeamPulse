@@ -53,3 +53,34 @@ node --test
 # Serveur local
 python -m http.server 4173
 ```
+
+---
+
+## 🤖 Assistant de Rapport Interactif (Voice & RAG)
+
+Un assistant vocal et textuel interactif est disponible sur l'onglet `Rapport interactif` (`rapport-interactif.html`). Il permet de poser des questions de vive voix ou par écrit sur le rapport de défi et la démarche de vibe coding.
+
+### 🌐 Déploiement Vercel & Endpoint Serverless
+L'assistant vocal s'appuie sur la route serverless Vercel `/api/live-token` qui génère des jetons éphémères à usage unique pour l'API WebSocket Gemini Live.
+
+**Variables d'environnement (Vercel) :**
+- `GOOGLE_API_KEY` *(Requis)* : Clé d'API Google Gemini (conservée uniquement côté serveur).
+- `GEMINI_LIVE_MODEL` *(Optionnel)* : Modèle Live (défaut : `gemini-3.1-flash-live-preview`).
+- `GEMINI_LIVE_VOICE` *(Optionnel)* : Voix de synthèse (défaut : `Sadaltager`).
+- `ALLOWED_ORIGINS` *(Optionnel)* : Origines autorisées pour CORS.
+
+**Test en développement local Vercel :**
+```bash
+# Lancement de l'environnement Vercel avec fonctions Serverless
+npx vercel dev
+```
+
+### 📚 Sources RAG & Fichiers
+- **Fichiers RAG publics** : `public/data/team-pulse-report.md` et `public/data/team-pulse-rag.json` (convertis automatiquement depuis `_inputs/`).
+- **Assets de l'Avatar** : `public/assets/report-assistant/avatar-manifest.json` et frames WebP dans `public/assets/report-assistant/`.
+
+### 🔐 Confidentialité & Règlements
+- Aucune conversation ni aucun enregistrement audio n'est conservé sur nos serveurs.
+- L'option de transcription est **locale et éphémère** (stockée uniquement en mémoire JavaScript de la session navigateur).
+- En mode statique GitHub Pages, la réponse vocale signale que `/api/live-token` nécessite Vercel, tout en maintenant la recherche textuelle RAG fonctionnelle.
+

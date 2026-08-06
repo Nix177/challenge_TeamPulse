@@ -1,0 +1,7 @@
+{
+  "fps": 12,
+  "idle": ["public/assets/report-assistant/placeholder-avatar.svg"],
+  "listening": ["public/assets/report-assistant/placeholder-avatar.svg"],
+  "thinking": ["public/assets/report-assistant/placeholder-avatar.svg"],
+  "speaking": ["public/assets/report-assistant/placeholder-avatar.svg"]
+}

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rapport interactif — Team Pulse</title>
+  <meta name="description" content="Assistant vocal et RAG interactif sur le rapport d'expérience Team Pulse et la démarche de vibe coding.">
+  <link rel="stylesheet" href="styles.css?v=20260806-checkin">
+</head>
+<body>
+
+  <!-- Accessibility Skip Link -->
+  <a href="#main-content" class="skip-link">Aller au contenu principal</a>
+
+  <!-- ARIA Live Announcement Region -->
+  <div id="aria-announce" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- Header -->
+  <header class="app-header" role="banner">
+    <div class="brand-block">
+      <svg class="brand-mark-svg" viewBox="0 0 32 32" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M 3 16 H 8 L 12 6 L 18 26 L 23 12 L 26 16 H 29"/>
+      </svg>
+      <h1 class="brand-title">Team Pulse</h1>
+    </div>
+    <nav class="main-nav" aria-label="Navigation principale">
+      <a href="index.html" class="nav-link">Baromètre</a>
+      <a href="rapport-interactif.html" class="nav-link is-active">Rapport interactif</a>
+    </nav>
+  </header>
+
+  <!-- Main Container -->
+  <main id="main-content" class="main-container" role="main" tabindex="-1">
+    <div id="report-assistant-app" class="report-assistant-grid">
+
+      <!-- LEFT COLUMN / TOP: Character Avatar & Live Status -->
+      <div class="avatar-sidebar-card">
+        <div id="avatar-container" class="avatar-frame">
+          <img src="public/assets/report-assistant/placeholder-avatar.svg" alt="Assistant Rapport Team Pulse" class="report-avatar-image">
+        </div>
+
+        <div id="assistant-status-badge" class="assistant-status-badge state-idle">
+          <span class="status-indicator-dot"></span>
+          <span id="assistant-status-text">Disponible</span>
+        </div>
+
+        <button id="btn-stop-speech" class="btn btn-secondary btn-sm" style="display: none; margin-top: 0.75rem;">
+          Interrompre la parole
+        </button>
+      </div>
+
+      <!-- RIGHT COLUMN / MAIN CONTENT -->
+      <div class="report-content-card">
+        <h2 class="main-heading">Rapport d’expérience interactif</h2>
+        <p class="subheading">
+          Posez vos questions de vive voix ou par écrit sur la démarche de vibe coding, le découpage du besoin et les enseignements du défi Team Pulse.
+        </p>
+
+        <!-- Static Deployment Notice -->
+        <div id="static-deployment-notice" class="warning-box" style="display: none; margin-bottom: 1.5rem;">
+          <strong>Mode statique :</strong> La réponse vocale Gemini Live requiert le serveur Vercel (<code>/api/live-token</code>). La recherche textuelle RAG dans le rapport reste totalement fonctionnelle.
+        </div>
+
+        <div id="report-error-notice" class="warning-box" style="display: none; margin-bottom: 1.5rem;"></div>
+
+        <!-- SUGGESTED QUESTIONS GRID -->
+        <section class="suggested-questions-section" aria-labelledby="suggested-heading">
+          <h3 id="suggested-heading" class="section-subheading">Questions suggérées :</h3>
+          <div class="suggested-questions-grid">
+            <button class="suggested-question-btn" data-question="Pourquoi avoir choisi un baromètre d’équipe ?">
+              Pourquoi avoir choisi un baromètre d’équipe ?
+            </button>
+            <button class="suggested-question-btn" data-question="Comment le problème a-t-il été découpé ?">
+              Comment le problème a-t-il été découpé ?
+            </button>
+            <button class="suggested-question-btn" data-question="Quelles erreurs de l’IA ont été détectées ?">
+              Quelles erreurs de l’IA ont été détectées ?
+            </button>
+            <button class="suggested-question-btn" data-question="Comment avez-vous vérifié que cela fonctionnait ?">
+              Comment avez-vous vérifié que cela fonctionnait ?
+            </button>
+            <button class="suggested-question-btn" data-question="Qu’avez-vous trouvé le plus difficile ?">
+              Qu’avez-vous trouvé le plus difficile ?
+            </button>
+            <button class="suggested-question-btn" data-question="Le vibe coding remplace-t-il le développement classique ?">
+              Le vibe coding remplace-t-il le développement classique ?
+            </button>
+            <button class="suggested-question-btn" data-question="Quelles sont les limites du prototype ?">
+              Quelles sont les limites du prototype ?
+            </button>
+            <button class="suggested-question-btn" data-question="Quelle serait la prochaine étape ?">
+              Quelle serait la prochaine étape ?
+            </button>
+          </div>
+        </section>
+
+        <!-- INTERACTION CONTROLS (TEXT & MICROPHONE) -->
+        <section class="interaction-controls-section">
+          <div class="input-controls-row">
+            <input 
+              type="text" 
+              id="report-text-input" 
+              class="form-input" 
+              placeholder="Posez une question sur le rapport..." 
+              aria-label="Posez une question sur le rapport"
+            >
+            <button id="btn-send-question" class="btn btn-primary">
+              Envoyer
+            </button>
+            <button id="btn-toggle-mic" class="btn btn-secondary btn-mic">
+              <svg class="mic-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                <line x1="12" y1="19" x2="12" y2="22"></line>
+              </svg>
+              <span id="mic-button-label">Parler au micro</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- OPTIONAL LOCAL TRANSCRIPT PANEL -->
+        <section class="transcript-options-section">
+          <label class="checkbox-option-label">
+            <input type="checkbox" id="chk-local-transcript">
+            <span>Conserver une transcription locale de cette conversation</span>
+          </label>
+
+          <div id="transcript-container" class="transcript-box" style="display: none;">
+            <div class="transcript-header">
+              <h4 class="transcript-title">Transcription locale (mémoire éphémère)</h4>
+              <button id="btn-download-transcript" class="btn btn-secondary btn-sm">
+                Télécharger en Markdown
+              </button>
+            </div>
+            <div id="transcript-list" class="transcript-list">
+              <p style="color: var(--ink-soft); font-style: italic;">Aucun échange enregistré pour le moment.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- PRIVACY INFORMATION PANEL -->
+        <section class="privacy-info-card">
+          <h4 class="privacy-info-heading">Information sur la confidentialité</h4>
+          <p class="privacy-info-text">
+            Votre question ou le flux audio de votre micro est transmis directement à l’API Google Gemini Live avec les extraits pertinents du rapport Team Pulse. Les données de connexion technique sont traitées par Google et Vercel conformément à leurs services. Aucune conversation n’est conservée ni stockée sur nos serveurs. L’option de transcription ci-dessus est strictement locale et éphémère dans votre navigateur.
+          </p>
+        </section>
+
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="app-footer" role="contentinfo">
+    <p class="privacy-statement">Assistant interactif basé sur le corpus du rapport Team Pulse.</p>
+  </footer>
+
+  <script type="module" src="public/js/VoiceAssistantApp.js"></script>
+</body>
+</html>
