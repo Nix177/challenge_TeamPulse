@@ -56,7 +56,7 @@ export function generateCubicPath(points) {
 }
 
 /**
- * Main entry point: Generates full SVG data visualization from percentages.
+ * Main entry point: Generates full SVG data visualization from percentages for revealed results.
  * 
  * @param {Record<string, number>} percentages 
  * @returns {{ points: Array<{ id: string, x: number, y: number, pct: number }>, pathD: string, isValid: boolean }}
@@ -73,4 +73,90 @@ export function generatePulseDataVisualization(percentages) {
     pathD,
     isValid
   };
+}
+
+/**
+ * Generates a privacy-preserving, neutral participation pulse visualization structure
+ * based SOLELY on the total number of submitted responses.
+ * 
+ * PRIVACY GUARANTEE: Does NOT accept or encode option IDs, category counts, or proportions.
+ * 
+ * @param {number} total Total number of responses (>= 0)
+ * @param {number} width SVG viewBox width (default 500)
+ * @param {number} height SVG viewBox height (default 120)
+ * @param {number} cap Display cap for individual nodes (default 20)
+ * @returns {{ total: number, visibleCount: number, cap: number, pathD: string, nodes: Array<{ index: number, x: number, y: number, r: number, isLatest: boolean }>, overflow: { hasOverflow: boolean, overflowCount: number, text: string }, isValid: boolean }}
+ */
+export function generateParticipationPulse(total = 0, width = 500, height = 120, cap = 20) {
+  const safeTotal = Math.max(0, Math.floor(Number(total) || 0));
+  const visibleCount = Math.min(safeTotal, cap);
+  const paddingX = 40;
+  const usableWidth = width - (paddingX * 2);
+  const centerY = height / 2; // 60
+
+  const pathD = `M 20 ${centerY} C 120 ${centerY - 25}, 180 ${centerY + 25}, 250 ${centerY} C 320 ${centerY - 25}, 380 ${centerY + 25}, 480 ${centerY}`;
+
+  const nodes = [];
+  if (visibleCount > 0) {
+    const stepX = visibleCount > 1 ? usableWidth / (visibleCount - 1) : 0;
+    const startX = visibleCount === 1 ? width / 2 : paddingX;
+
+    for (let i = 0; i < visibleCount; i++) {
+      const x = Math.round((visibleCount === 1 ? startX : startX + (i * stepX)) * 10) / 10;
+      const offsetFactor = Math.sin((i + 1) * 1.5);
+      const y = Math.round((centerY + (offsetFactor * 18)) * 10) / 10;
+      const r = i === visibleCount - 1 ? 7 : 5;
+      nodes.push({ index: i + 1, x, y, r, isLatest: i === visibleCount - 1 });
+    }
+  }
+
+  const hasOverflow = safeTotal > cap;
+  const overflowCount = hasOverflow ? safeTotal - cap : 0;
+
+  return {
+    total: safeTotal,
+    visibleCount,
+    cap,
+    pathD,
+    nodes,
+    overflow: {
+      hasOverflow,
+      overflowCount,
+      text: hasOverflow ? `+${overflowCount}` : ''
+    },
+    isValid: !isNaN(safeTotal)
+  };
+}
+
+/**
+ * Renders the HTML SVG string for neutral participation pulse visual.
+ * 
+ * @param {number} total 
+ * @returns {string} SVG HTML string
+ */
+export function renderParticipationPulseSvg(total = 0) {
+  const data = generateParticipationPulse(total);
+  const { pathD, nodes, overflow, total: safeTotal } = data;
+
+  const nodeElements = nodes.map(n => {
+    const className = n.isLatest ? 'pulse-node pulse-node-latest' : 'pulse-node';
+    return `<circle cx="${n.x}" cy="${n.y}" r="${n.r}" class="${className}" />`;
+  }).join('');
+
+  const overflowMarkup = overflow.hasOverflow ? `
+    <g class="pulse-overflow-group">
+      <circle cx="465" cy="60" r="14" class="pulse-overflow-bg" />
+      <text x="465" y="64" text-anchor="middle" class="pulse-overflow-text">${overflow.text}</text>
+    </g>
+  ` : '';
+
+  const pulseLineClass = safeTotal > 0 ? 'pulse-line pulse-line-active' : 'pulse-line';
+
+  return `
+    <svg class="participation-pulse-svg" viewBox="0 0 500 120" aria-hidden="true" fill="none">
+      <path d="${pathD}" class="${pulseLineClass}" />
+      ${nodeElements}
+      ${overflowMarkup}
+    </svg>
+  `.trim();
 }

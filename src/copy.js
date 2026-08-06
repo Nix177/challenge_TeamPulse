@@ -46,11 +46,15 @@ export const COPY = Object.freeze({
   },
 
   receipt: {
-    heading: 'Réponse enregistrée.',
+    heading: 'Votre réponse a rejoint le pouls.',
     formatBody: (code) => `Elle a bien été ajoutée à la session ${code}.`,
-    privacyExplanation: 'Aucun nom n’est associé à ta réponse. Le facilitateur ne verra que la répartition du groupe, pas ton choix individuel.',
-    closingInstruction: 'Tu peux maintenant fermer cette page.',
-    alreadySubmitted: 'Une réponse a déjà été enregistrée depuis ce navigateur pour cette session.'
+    privacyExplanation: 'La personne qui anime voit uniquement le nombre de participations pendant la collecte.',
+    waitingStatement: 'La répartition sera révélée après la clôture des réponses.',
+    closingInstruction: 'Vous pouvez garder cette page ouverte ou la fermer.',
+    closedNotice: 'Les réponses sont maintenant closes. La répartition va être présentée par la personne qui anime.',
+    offlineNotice: 'Actualisation momentanément indisponible.',
+    alreadySubmitted: 'Une réponse a déjà été enregistrée depuis ce navigateur pour cette session.',
+    yourChoiceLabel: 'Votre choix enregistré :'
   },
 
   creation: {
@@ -63,7 +67,7 @@ export const COPY = Object.freeze({
   },
 
   facilitatorDashboard: {
-    openHeading: 'La session est ouverte.',
+    openHeading: 'Le pouls du groupe se construit',
     openInstruction: 'Partage ce code avec les participantes et participants.',
     codeLabel: 'Code de session',
     linkLabel: 'Lien à partager',
@@ -77,7 +81,9 @@ export const COPY = Object.freeze({
     closedHeading: 'Les réponses sont closes.',
     closedBody: 'Les participations pour cette session sont fermées.',
     revealBtn: 'Afficher la répartition',
-    deleteBtn: 'Supprimer la session'
+    deleteBtn: 'Supprimer la session',
+    privacyNote: 'Les choix restent masqués jusqu’à la clôture.',
+    emptyState: 'En attente des premières réponses…'
   },
 
   facilitatorRevealed: {
@@ -130,6 +136,7 @@ export const COPY = Object.freeze({
  * @returns {string}
  */
 export function formatRoomResponseCount(total) {
-  if (total <= 1) return `${total} réponse reçue`;
+  if (total <= 0) return '0 réponse reçue';
+  if (total === 1) return '1 réponse reçue';
   return `${total} réponses reçues`;
 }
