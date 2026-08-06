@@ -61,6 +61,9 @@ export class VoiceAssistantApp {
       },
       onTranscript: (role, text) => {
         this.addTranscriptEntry(role, text);
+      },
+      onError: (err) => {
+        this.showErrorNotice(err.message || "Assistant momentanément indisponible.");
       }
     });
 
@@ -72,13 +75,6 @@ export class VoiceAssistantApp {
         console.error('[VoiceAssistantApp] Microphone error:', err);
         this.updateState('idle');
         this.showErrorNotice("Accès au micro refusé ou indisponible. Vous pouvez continuer à poser vos questions par écrit.");
-      }
-    });
-
-    // Check if /api/live-token is available (for Vercel vs static GitHub Pages)
-    this.client.fetchToken().then(token => {
-      if (!token && this.staticNoticeEl) {
-        this.staticNoticeEl.style.display = 'block';
       }
     });
   }
@@ -125,14 +121,22 @@ export class VoiceAssistantApp {
     // Microphone Toggle Button
     if (this.micBtnEl) {
       this.micBtnEl.addEventListener('click', async () => {
+        // Unlock audio context during direct user gesture
+        this.audioPlayer.ensureContext();
+
         if (this.micCapture.isCapturing) {
           this.micCapture.stop();
+          this.client.sendAudioStreamEnd();
           this.updateState('idle');
         } else {
           this.client.interrupt();
           this.updateState('listening');
-          await this.client.connect();
-          await this.micCapture.start();
+          const connected = await this.client.connect();
+          if (connected) {
+            await this.micCapture.start();
+          } else {
+            this.updateState('error');
+          }
         }
       });
     }
@@ -174,6 +178,8 @@ export class VoiceAssistantApp {
 
   async submitQuestion(questionText) {
     if (!questionText) return;
+    // Unlock audio context during direct user gesture before first await
+    this.audioPlayer.ensureContext();
     this.client.interrupt();
     await this.client.sendTextQuestion(questionText);
   }

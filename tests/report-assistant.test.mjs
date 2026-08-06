@@ -7,7 +7,7 @@ import {
   normalizeFrenchText, 
   extractTokens 
 } from '../public/js/TeamPulseReportRetriever.js';
-import { SYSTEM_INSTRUCTION } from '../public/js/GeminiLiveClient.js';
+import { GeminiLiveClient, SYSTEM_INSTRUCTION } from '../public/js/GeminiLiveClient.js';
 import { PcmAudioPlayer } from '../public/js/PcmAudioPlayer.js';
 
 test('RAG JSON loads successfully and contains all 49 unique chunks with required fields', async () => {
@@ -191,4 +191,87 @@ test('Avatar manifest and placeholder SVG exist and parse correctly under public
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
   assert.equal(typeof manifest.fps, 'number');
   assert.equal(Array.isArray(manifest.speaking), true);
+});
+
+test('GeminiLiveClient WebSocket setupComplete handshake lifecycle', async () => {
+  class MockWebSocket {
+    static OPEN = 1;
+    static CONNECTING = 0;
+    static CLOSED = 3;
+    constructor(url) {
+      this.url = url;
+      this.readyState = MockWebSocket.CONNECTING;
+      this.sentMessages = [];
+      setTimeout(() => {
+        this.readyState = MockWebSocket.OPEN;
+        if (this.onopen) this.onopen();
+      }, 10);
+    }
+    send(data) {
+      this.sentMessages.push(JSON.parse(data));
+    }
+    close() {
+      this.readyState = MockWebSocket.CLOSED;
+      if (this.onclose) this.onclose();
+    }
+  }
+
+  const originalWs = global.WebSocket;
+  const originalFetch = global.fetch;
+
+  global.WebSocket = MockWebSocket;
+  global.fetch = async () => ({
+    ok: true,
+    json: async () => ({ ok: true, token: 'mock-token', model: 'mock-model', voice: 'mock-voice' })
+  });
+
+  const client = new GeminiLiveClient({
+    retriever: { retrieve: async () => ({ contextText: 'mock' }) },
+    audioPlayer: null
+  });
+
+  let setupResolved = false;
+  const connectPromise = client.connect().then(res => {
+    setupResolved = res;
+    return res;
+  });
+
+  await new Promise(r => setTimeout(r, 25));
+
+  // 1. connect() sends setup on open
+  assert.equal(client.ws.sentMessages.length, 1);
+  assert.equal(Boolean(client.ws.sentMessages[0].setup), true, 'Setup message must be sent on open');
+
+  // 2. connect() does NOT resolve on open
+  assert.equal(setupResolved, false, 'connect() must not resolve before setupComplete');
+  assert.equal(client.ws.sentMessages.some(m => m.clientContent), false, 'clientContent must not be sent before setupComplete');
+
+  // Send setupComplete from mock server
+  client.ws.onmessage({ data: JSON.stringify({ setupComplete: {} }) });
+
+  const result = await connectPromise;
+  // 4. connect() resolves after setupComplete
+  assert.equal(result, true, 'connect() resolves to true after setupComplete');
+  assert.equal(client.isSetupComplete, true);
+
+  // Send realtime audio chunk
+  client.sendRealtimeAudioChunk('base64data');
+  const lastMsg = client.ws.sentMessages[client.ws.sentMessages.length - 1];
+  // 10. microphone audio uses realtimeInput.audio
+  assert.equal(Boolean(lastMsg.realtimeInput?.audio?.data), true, 'Realtime audio must use realtimeInput.audio format');
+  assert.equal(lastMsg.realtimeInput.audio.mimeType, 'audio/pcm;rate=16000');
+
+  // 11. stopping microphone sends audioStreamEnd
+  client.sendAudioStreamEnd();
+  const streamEndMsg = client.ws.sentMessages[client.ws.sentMessages.length - 1];
+  assert.equal(streamEndMsg.realtimeInput.audioStreamEnd, true);
+
+  // 12. turnComplete returns state to idle
+  client.state = 'thinking';
+  await client.handleServerMessage({ data: JSON.stringify({ serverContent: { turnComplete: true } }) });
+  assert.equal(client.state, 'idle', 'turnComplete must return state to idle');
+
+  // Restore globals
+  global.WebSocket = originalWs;
+  global.fetch = originalFetch;
 });

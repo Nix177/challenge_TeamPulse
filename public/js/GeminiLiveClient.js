@@ -1,9 +1,9 @@
 /**
  * GeminiLiveClient — WebSocket Client for Gemini Live API & RAG Tool Handling
  * 
- * Manages WebSocket connection to Gemini Live, handles toolCall / toolResponse for
- * retrieve_team_pulse_report_context, streams 24kHz PCM audio to PcmAudioPlayer,
- * and handles text / microphone input.
+ * Manages WebSocket connection to Gemini Live, handles setupComplete handshake,
+ * toolCall / toolResponse for retrieve_team_pulse_report_context, streams 24kHz PCM
+ * audio to PcmAudioPlayer, and handles text / microphone input.
  */
 
 export const SYSTEM_INSTRUCTION = `Vous êtes l’assistant vocal du rapport de défi Team Pulse de Nicolas Tuor.
@@ -37,6 +37,14 @@ export class GeminiLiveClient {
     this.voice = 'Sadaltager';
     this.state = 'idle'; // 'idle' | 'listening' | 'thinking' | 'speaking' | 'error'
     this.isStaticMode = false;
+
+    // Connection & Handshake lifecycle fields
+    this.connectPromise = null;
+    this.resolveSetup = null;
+    this.rejectSetup = null;
+    this.setupTimeout = null;
+    this.manualClose = false;
+    this.isSetupComplete = false;
 
     // Connect audio player callbacks to state
     if (this.audioPlayer) {
@@ -83,46 +91,108 @@ export class GeminiLiveClient {
   }
 
   async connect() {
-    if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
+    if (this.isSetupComplete && this.ws && this.ws.readyState === WebSocket.OPEN) {
       return true;
     }
-
-    const token = await this.fetchToken();
-    if (!token || this.isStaticMode) {
-      return false;
+    if (this.connectPromise) {
+      return this.connectPromise;
     }
 
-    return new Promise((resolve) => {
-      try {
-        const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained?access_token=${encodeURIComponent(token)}`;
-        this.ws = new WebSocket(wsUrl);
+    this.connectPromise = (async () => {
+      const token = await this.fetchToken();
+      if (!token || this.isStaticMode) {
+        this.connectPromise = null;
+        return false;
+      }
 
-        this.ws.onopen = () => {
-          this.sendSetup();
-          resolve(true);
-        };
+      return new Promise((resolve, reject) => {
+        try {
+          const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained?access_token=${encodeURIComponent(token)}`;
+          this.ws = new WebSocket(wsUrl);
+          this.manualClose = false;
 
-        this.ws.onmessage = async (event) => {
-          await this.handleServerMessage(event.data);
-        };
+          this.resolveSetup = () => {
+            if (this.setupTimeout) {
+              clearTimeout(this.setupTimeout);
+              this.setupTimeout = null;
+            }
+            this.isSetupComplete = true;
+            resolve(true);
+          };
 
-        this.ws.onerror = (err) => {
-          console.error('[GeminiLiveClient] WebSocket error:', err);
+          this.rejectSetup = (err) => {
+            if (this.setupTimeout) {
+              clearTimeout(this.setupTimeout);
+              this.setupTimeout = null;
+            }
+            this.isSetupComplete = false;
+            reject(err);
+          };
+
+          this.ws.onopen = () => {
+            this.sendSetup();
+            // 12-second setup timeout
+            this.setupTimeout = setTimeout(() => {
+              const err = new Error("Le serveur Gemini Live met trop de temps à répondre (timeout 12s).");
+              if (this.rejectSetup) {
+                this.rejectSetup(err);
+                this.resolveSetup = null;
+                this.rejectSetup = null;
+              }
+              this.setState('error');
+              if (this.ws) {
+                try { this.ws.close(); } catch (_) {}
+              }
+            }, 12000);
+          };
+
+          this.ws.onmessage = async (event) => {
+            await this.handleServerMessage(event);
+          };
+
+          this.ws.onerror = (err) => {
+            console.error('[GeminiLiveClient] WebSocket error:', err);
+            if (this.rejectSetup) {
+              this.rejectSetup(new Error('Erreur de connexion WebSocket avec Gemini Live.'));
+              this.resolveSetup = null;
+              this.rejectSetup = null;
+            }
+            this.setState('error');
+          };
+
+          this.ws.onclose = () => {
+            const wasConnected = this.isSetupComplete;
+            this.isSetupComplete = false;
+            if (this.rejectSetup) {
+              this.rejectSetup(new Error('La connexion WebSocket s’est fermée avant la fin de l’initialisation.'));
+              this.resolveSetup = null;
+              this.rejectSetup = null;
+            }
+            if (this.state === 'speaking' || this.state === 'thinking') {
+              this.setState('idle');
+            }
+          };
+        } catch (err) {
+          console.error('[GeminiLiveClient] Connection initialization failed:', err);
+          if (this.rejectSetup) {
+            this.rejectSetup(err);
+            this.resolveSetup = null;
+            this.rejectSetup = null;
+          }
           this.setState('error');
           resolve(false);
-        };
-
-        this.ws.onclose = () => {
-          if (this.state === 'speaking' || this.state === 'thinking') {
-            this.setState('idle');
-          }
-        };
-      } catch (err) {
-        console.error('[GeminiLiveClient] Connection failed:', err);
+        }
+      }).catch(err => {
+        console.warn('[GeminiLiveClient] Setup handshake rejected:', err.message);
         this.setState('error');
-        resolve(false);
-      }
-    });
+        this.onError?.(err);
+        return false;
+      }).finally(() => {
+        this.connectPromise = null;
+      });
+    })();
+
+    return this.connectPromise;
   }
 
   sendSetup() {
@@ -170,15 +240,39 @@ export class GeminiLiveClient {
     this.ws.send(JSON.stringify(setupMsg));
   }
 
-  async handleServerMessage(data) {
+  async handleServerMessage(event) {
     let msg;
     try {
-      msg = typeof data === 'string' ? JSON.parse(data) : JSON.parse(new TextDecoder().decode(data));
+      const data = event && event.data !== undefined ? event.data : event;
+      let raw;
+      if (typeof data === 'string') {
+        raw = data;
+      } else if (data && typeof data.text === 'function') {
+        raw = await data.text();
+      } else if (data instanceof ArrayBuffer) {
+        raw = new TextDecoder().decode(data);
+      } else {
+        raw = String(data);
+      }
+      msg = JSON.parse(raw);
     } catch (e) {
+      console.warn('[GeminiLiveClient] Could not parse server message:', e);
       return;
     }
 
-    // Handle Tool Call from Gemini Live
+    if (!msg) return;
+
+    // Handle setupComplete handshake from server
+    if (msg.setupComplete) {
+      if (this.resolveSetup) {
+        this.resolveSetup();
+        this.resolveSetup = null;
+        this.rejectSetup = null;
+      }
+      return;
+    }
+
+    // Handle toolCall (functionCalls)
     if (msg.toolCall && Array.isArray(msg.toolCall.functionCalls)) {
       this.setState('thinking');
       for (const call of msg.toolCall.functionCalls) {
@@ -191,11 +285,26 @@ export class GeminiLiveClient {
       return;
     }
 
-    // Handle Server Content (Audio / Text)
+    // Handle toolCallCancellation
+    if (msg.toolCallCancellation) {
+      if (this.state === 'thinking') {
+        this.setState('idle');
+      }
+      return;
+    }
+
+    // Handle goAway
+    if (msg.goAway) {
+      console.warn('[GeminiLiveClient] Server sent goAway, disconnecting');
+      this.disconnect();
+      return;
+    }
+
+    // Handle serverContent
     if (msg.serverContent) {
       const parts = msg.serverContent.modelTurn?.parts || [];
       for (const part of parts) {
-        if (part.inlineData && part.inlineData.data) {
+        if (part.inlineData && part.inlineData.mimeType && part.inlineData.mimeType.startsWith('audio/') && part.inlineData.data) {
           if (this.audioPlayer) {
             this.audioPlayer.playChunk(part.inlineData.data);
           }
@@ -208,11 +317,17 @@ export class GeminiLiveClient {
       if (msg.serverContent.interrupted) {
         this.interrupt();
       }
+
+      if (msg.serverContent.turnComplete) {
+        if (!this.audioPlayer || !this.audioPlayer.isPlaying) {
+          this.setState('idle');
+        }
+      }
     }
   }
 
   sendToolResponse(callId, name, resultText) {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.isSetupComplete) return;
 
     const responseMsg = {
       toolResponse: {
@@ -232,20 +347,30 @@ export class GeminiLiveClient {
   }
 
   sendRealtimeAudioChunk(base64PcmData) {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.isSetupComplete) return;
 
     const audioMsg = {
       realtimeInput: {
-        mediaChunks: [
-          {
-            mimeType: 'audio/pcm;rate=16000',
-            data: base64PcmData
-          }
-        ]
+        audio: {
+          data: base64PcmData,
+          mimeType: 'audio/pcm;rate=16000'
+        }
       }
     };
 
     this.ws.send(JSON.stringify(audioMsg));
+  }
+
+  sendAudioStreamEnd() {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.isSetupComplete) return;
+
+    const endMsg = {
+      realtimeInput: {
+        audioStreamEnd: true
+      }
+    };
+
+    this.ws.send(JSON.stringify(endMsg));
   }
 
   async sendTextQuestion(question) {
@@ -255,7 +380,6 @@ export class GeminiLiveClient {
 
     const connected = await this.connect();
     if (!connected || this.isStaticMode) {
-      // Static / Offline RAG fallback
       const retrieved = await this.retriever.retrieve(question);
       const fallbackText = this.generateStaticResponse(question, retrieved.contextText);
       this.onTranscript('assistant', fallbackText);
@@ -295,6 +419,18 @@ export class GeminiLiveClient {
   }
 
   disconnect() {
+    this.manualClose = true;
+    this.isSetupComplete = false;
+    if (this.setupTimeout) {
+      clearTimeout(this.setupTimeout);
+      this.setupTimeout = null;
+    }
+    if (this.rejectSetup) {
+      this.rejectSetup(new Error('Connection closed manually'));
+      this.resolveSetup = null;
+      this.rejectSetup = null;
+    }
+    this.connectPromise = null;
     this.interrupt();
     if (this.ws) {
       try {

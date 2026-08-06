@@ -19,8 +19,11 @@ export class PcmAudioPlayer {
   }
 
   ensureContext() {
+    if (typeof window === 'undefined') return null;
     if (!this.audioContext) {
-      this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return null;
+      this.audioContext = new AudioCtx({
         sampleRate: this.sampleRate
       });
       this.gainNode = this.audioContext.createGain();
@@ -28,8 +31,9 @@ export class PcmAudioPlayer {
       this.gainNode.connect(this.audioContext.destination);
     }
     if (this.audioContext.state === 'suspended') {
-      this.audioContext.resume();
+      this.audioContext.resume().catch(() => {});
     }
+    return this.audioContext;
   }
 
   playChunk(base64PcmData) {
