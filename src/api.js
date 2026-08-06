@@ -125,8 +125,17 @@ export async function callMockRpc(functionName, payload) {
     const room = mockDatabase.rooms.get(payload.p_code);
     if (!room) throw createApiError('ROOM_NOT_FOUND', 'NOT_FOUND', 404, 'P0001', functionName);
     if (new Date(room.expires_at) < now) throw createApiError('ROOM_EXPIRED', 'EXPIRED', 400, 'P0001', functionName);
-    if (room.status === 'closed') throw createApiError('ROOM_CLOSED', 'CLOSED', 400, 'P0001', functionName);
     const counts = mockDatabase.counts.get(payload.p_code);
+
+    if (room.status === 'closed') {
+      return {
+        code: room.code,
+        status: room.status,
+        total_votes: counts ? counts.total : 0,
+        counts: counts || createEmptyCounts()
+      };
+    }
+
     return {
       code: room.code,
       status: room.status,

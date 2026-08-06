@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Team Pulse — Prendre le pouls. Ouvrir la conversation.</title>
-  <meta name="description" content="Prototype d'expression collective pour ateliers d'équipe en présentiel.">
-  <link rel="stylesheet" href="styles.css?v=20260805-session">
+  <title>Team Pulse — Check-in collectif</title>
+  <meta name="description" content="Check-in de 30 secondes pour réunions, ateliers et cours.">
+  <link rel="stylesheet" href="styles.css?v=20260806-checkin">
 </head>
 <body>
 
@@ -21,19 +21,7 @@
       <svg class="brand-mark-svg" viewBox="0 0 32 32" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M 3 16 H 8 L 12 6 L 18 26 L 23 12 L 26 16 H 29"/>
       </svg>
-      <div class="brand-text-container">
-        <h1 class="brand-title">Team Pulse</h1>
-        <p class="brand-tagline">Prendre le pouls. Ouvrir la conversation.</p>
-      </div>
-    </div>
-    <div class="header-actions">
-      <div class="session-status-badge" title="Les réponses sont transmises à la session et présentées uniquement sous forme agrégée au facilitateur.">
-        <span>Session privée</span>
-        <span class="sr-only">. Les réponses sont transmises à la session et présentées uniquement sous forme agrégée au facilitateur.</span>
-      </div>
-      <div id="header-facilitator-container">
-        <!-- Injected dynamic "Espace facilitateur" / "Rejoindre une session" button -->
-      </div>
+      <h1 class="brand-title">Team Pulse</h1>
     </div>
   </header>
 
@@ -53,9 +41,9 @@
 
   <!-- Footer -->
   <footer class="app-footer" role="contentinfo">
-    <p class="privacy-statement">Aucun nom n’est demandé. Le facilitateur ne voit que la répartition du groupe, jamais les choix individuels.</p>
+    <p class="privacy-statement">Aucun nom n’est demandé. Les choix individuels restent toujours masqués.</p>
   </footer>
 
-  <script type="module" src="src/app.js?v=20260805-session"></script>
+  <script type="module" src="src/app.js?v=20260806-checkin"></script>
 </body>
 </html>

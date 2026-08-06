@@ -1,126 +1,119 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  calculatePulsePoints,
-  generateCubicPath,
-  generatePulseDataVisualization,
-  generateParticipationPulse,
-  renderParticipationPulseSvg
+  generateStackedBarVisualization,
+  hasValidCounts
 } from '../src/visualisation.js';
 
-test('calculatePulsePoints returns 5 valid points for empty/zero percentages', () => {
-  const zeroPercentages = {
+test('hasValidCounts correctly validates genuine zero counts, valid counts, and rejects missing/malformed objects', () => {
+  const genuineZero = {
     'very-difficult': 0,
     'difficult': 0,
     'mixed': 0,
     'good': 0,
     'very-good': 0
   };
-  const points = calculatePulsePoints(zeroPercentages);
-  assert.equal(points.length, 5);
-  points.forEach(p => {
-    assert.equal(typeof p.x, 'number');
-    assert.equal(typeof p.y, 'number');
-    assert.equal(isNaN(p.x), false);
-    assert.equal(isNaN(p.y), false);
-    assert.equal(p.pct, 0);
-  });
+  assert.equal(hasValidCounts(genuineZero), true, 'Genuine zero counts object must be valid');
+
+  const validCounts = {
+    'very-difficult': 1,
+    'difficult': 2,
+    'mixed': 4,
+    'good': 6,
+    'very-good': 3
+  };
+  assert.equal(hasValidCounts(validCounts), true, 'Valid populated counts object must be valid');
+
+  assert.equal(hasValidCounts(null), false);
+  assert.equal(hasValidCounts(undefined), false);
+  assert.equal(hasValidCounts({}), false);
+
+  const incompleteCounts = {
+    'very-difficult': 1,
+    'difficult': 2,
+    'mixed': 4,
+    'good': 6
+  };
+  assert.equal(hasValidCounts(incompleteCounts), false, 'Counts missing a key must be invalid');
+
+  const malformedCounts = {
+    'very-difficult': 1,
+    'difficult': 'invalid',
+    'mixed': 4,
+    'good': 6,
+    'very-good': 3
+  };
+  assert.equal(hasValidCounts(malformedCounts), false, 'Counts with non-numeric property must be invalid');
 });
 
-test('calculatePulsePoints handles 1 dominant value correctly', () => {
-  const dominantPercentages = {
+test('generateStackedBarVisualization(counts) handles 0 total responses cleanly', () => {
+  const zeroCounts = {
     'very-difficult': 0,
     'difficult': 0,
-    'mixed': 100,
+    'mixed': 0,
     'good': 0,
     'very-good': 0
   };
-  const points = calculatePulsePoints(dominantPercentages);
-  assert.equal(points[2].pct, 100);
-  // Point 2 (mixed) peak Y should be higher up (smaller numeric y value) than baseline points
-  assert.ok(points[2].y < points[0].y);
-});
-
-test('calculatePulsePoints handles equal values correctly', () => {
-  const equalPercentages = {
-    'very-difficult': 20,
-    'difficult': 20,
-    'mixed': 20,
-    'good': 20,
-    'very-good': 20
-  };
-  const points = calculatePulsePoints(equalPercentages);
-  assert.equal(points.length, 5);
-  const firstY = points[0].y;
-  points.forEach(p => {
-    assert.equal(p.y, firstY);
+  const res = generateStackedBarVisualization(zeroCounts);
+  assert.equal(res.total, 0);
+  assert.equal(res.segments.length, 5);
+  assert.equal(res.isValid, true);
+  res.segments.forEach(s => {
+    assert.equal(s.count, 0);
+    assert.equal(s.percentage, 0);
   });
 });
 
-test('generatePulseDataVisualization generates valid SVG path without NaN or undefined', () => {
-  const samplePercentages = {
-    'very-difficult': 6,
-    'difficult': 13,
-    'mixed': 25,
-    'good': 38,
-    'very-good': 19
+test('generateStackedBarVisualization(counts) handles 1 response correctly', () => {
+  const singleCounts = {
+    'very-difficult': 0,
+    'difficult': 0,
+    'mixed': 0,
+    'good': 1,
+    'very-good': 0
   };
-  const res = generatePulseDataVisualization(samplePercentages);
-  assert.equal(res.isValid, true);
-  assert.equal(res.points.length, 5);
-  assert.match(res.pathD, /^M \d+(\.\d+)? \d+(\.\d+)? C/);
-  assert.equal(res.pathD.includes('NaN'), false);
-  assert.equal(res.pathD.includes('undefined'), false);
-});
-
-test('generateParticipationPulse(0) generates clean empty baseline visual', () => {
-  const res = generateParticipationPulse(0);
-  assert.equal(res.total, 0);
-  assert.equal(res.visibleCount, 0);
-  assert.equal(res.nodes.length, 0);
-  assert.equal(res.overflow.hasOverflow, false);
-  assert.equal(res.isValid, true);
-});
-
-test('generateParticipationPulse(1) generates 1 centered node with highlight', () => {
-  const res = generateParticipationPulse(1);
+  const res = generateStackedBarVisualization(singleCounts);
   assert.equal(res.total, 1);
-  assert.equal(res.visibleCount, 1);
-  assert.equal(res.nodes.length, 1);
-  assert.equal(res.nodes[0].x, 250);
-  assert.equal(res.nodes[0].isLatest, true);
-  assert.equal(res.overflow.hasOverflow, false);
+  assert.equal(res.segments.find(s => s.id === 'good').percentage, 100);
+  assert.equal(res.segments.find(s => s.id === 'good').count, 1);
 });
 
-test('generateParticipationPulse(5) generates 5 distributed nodes', () => {
-  const res = generateParticipationPulse(5);
-  assert.equal(res.total, 5);
-  assert.equal(res.visibleCount, 5);
-  assert.equal(res.nodes.length, 5);
-  assert.equal(res.nodes[4].isLatest, true);
-  assert.equal(res.overflow.hasOverflow, false);
+test('generateStackedBarVisualization(counts) handles equal distributions and rounds to 100%', () => {
+  const equalCounts = {
+    'very-difficult': 2,
+    'difficult': 2,
+    'mixed': 2,
+    'good': 2,
+    'very-good': 2
+  };
+  const res = generateStackedBarVisualization(equalCounts);
+  assert.equal(res.total, 10);
+  const sumPct = res.segments.reduce((acc, s) => acc + s.percentage, 0);
+  assert.equal(sumPct, 100);
+  res.segments.forEach(s => {
+    assert.equal(s.count, 2);
+    assert.equal(s.percentage, 20);
+  });
 });
 
-test('generateParticipationPulse(25) caps visible nodes at 20 and calculates +5 overflow', () => {
-  const res = generateParticipationPulse(25);
-  assert.equal(res.total, 25);
-  assert.equal(res.visibleCount, 20);
-  assert.equal(res.nodes.length, 20);
-  assert.equal(res.overflow.hasOverflow, true);
-  assert.equal(res.overflow.overflowCount, 5);
-  assert.equal(res.overflow.text, '+5');
-});
+test('generateStackedBarVisualization(counts) contains all 5 canonical options in exact order without NaN or undefined', () => {
+  const sampleCounts = {
+    'very-difficult': 1,
+    'difficult': 2,
+    'mixed': 4,
+    'good': 6,
+    'very-good': 3
+  };
+  const res = generateStackedBarVisualization(sampleCounts);
+  assert.equal(res.total, 16);
+  assert.equal(res.isValid, true);
+  assert.equal(res.segments.length, 5);
+  assert.equal(res.segments[0].id, 'very-difficult');
+  assert.equal(res.segments[1].id, 'difficult');
+  assert.equal(res.segments[2].id, 'mixed');
+  assert.equal(res.segments[3].id, 'good');
+  assert.equal(res.segments[4].id, 'very-good');
 
-test('renderParticipationPulseSvg produces valid deterministic SVG string without NaN or undefined', () => {
-  const svg0 = renderParticipationPulseSvg(0);
-  assert.equal(svg0.includes('NaN'), false);
-  assert.equal(svg0.includes('undefined'), false);
-  assert.equal(svg0.includes('participation-pulse-svg'), true);
-  assert.equal(svg0.includes('aria-hidden="true"'), true);
-
-  const svg15 = renderParticipationPulseSvg(15);
-  assert.equal(svg15.includes('pulse-node'), true);
-  assert.equal(svg15.includes('pulse-node-latest'), true);
-  assert.equal(svg15.includes('NaN'), false);
-  assert.equal(svg15.includes('undefined'), false);
+  const sumPct = res.segments.reduce((acc, s) => acc + s.percentage, 0);
+  assert.equal(sumPct, 100);
 });

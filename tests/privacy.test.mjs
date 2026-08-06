@@ -142,13 +142,10 @@ test('SQL files do not contain improperly nested or conflicting dollar-quote del
   const schedulePath = path.resolve(process.cwd(), 'supabase/schedule-team-pulse-cleanup.sql');
   const scheduleSql = fs.readFileSync(schedulePath, 'utf8');
 
-  // Verify that schedule script uses distinct named tags ($do$, $chk$, $sched$, $cron$)
   assert.equal(scheduleSql.includes('$do$'), true, 'Schedule script must use named $do$ tag for DO block');
   assert.equal(scheduleSql.includes('$chk$'), true, 'Schedule script must use named $chk$ tag for check EXECUTE');
   assert.equal(scheduleSql.includes('$sched$'), true, 'Schedule script must use named $sched$ tag for scheduling EXECUTE');
   assert.equal(scheduleSql.includes('$cron$'), true, 'Schedule script must use named $cron$ tag for cron job command');
-
-  // Verify no un-named $$ tags exist in schedule script to prevent nesting conflicts
   assert.equal(scheduleSql.includes('$$'), false, 'Schedule script must not use un-named $$ tags which cause nesting syntax errors');
 });
 
@@ -158,7 +155,8 @@ test('Active Team Pulse SQL files do not contain invalid SQL special form pg_cat
     'supabase/preflight-team-pulse.sql',
     'supabase/verify-team-pulse.sql',
     'supabase/schedule-team-pulse-cleanup.sql',
-    'supabase/remove-team-pulse.sql'
+    'supabase/remove-team-pulse.sql',
+    'supabase/migrations/20260806_enable_public_result_reveal.sql'
   ];
 
   for (const relPath of activeSqlFiles) {

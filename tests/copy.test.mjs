@@ -11,7 +11,7 @@ test('formatRoomResponseCount handles singular, plural, and zero correctly', () 
   assert.equal(formatRoomResponseCount(15), '15 réponses reçues');
 });
 
-test('Prohibited shared-device jargon strings do not exist in COPY', () => {
+test('Prohibited informal "tu" or shared-device jargon strings do not exist in COPY', () => {
   const jsonString = JSON.stringify(COPY);
   const prohibitedStrings = [
     'passer l’appareil',
@@ -23,7 +23,10 @@ test('Prohibited shared-device jargon strings do not exist in COPY', () => {
     'EXPRESSION INDIVIDUELLE',
     'CONFIRMATION',
     'RÉPONSE AJOUTÉE',
-    'RÉSULTATS COLLECTIFS'
+    'RÉSULTATS COLLECTIFS',
+    ' tu ',
+    ' ta ',
+    ' ton '
   ];
 
   for (const forbidden of prohibitedStrings) {
@@ -35,31 +38,37 @@ test('Prohibited shared-device jargon strings do not exist in COPY', () => {
   }
 });
 
-test('index.html contains updated session privacy copy and version query parameters', () => {
+test('index.html contains simplified header with Team Pulse title only', () => {
   const indexPath = path.resolve(process.cwd(), 'index.html');
   const indexContent = fs.readFileSync(indexPath, 'utf8');
 
-  assert.equal(indexContent.includes('Réponses non conservées'), false);
-  assert.equal(indexContent.includes('Les réponses restent uniquement dans cette page et disparaissent lorsqu’elle est rechargée.'), false);
-  assert.equal(indexContent.includes('Les réponses ne quittent pas cette page et disparaissent lorsqu’elle est rechargée.'), false);
+  // Tagline and obsolete badges must NOT exist in index.html header
+  assert.equal(indexContent.includes('Prendre le pouls. Ouvrir la conversation.'), false);
+  assert.equal(indexContent.includes('Session privée'), false);
+  assert.equal(indexContent.includes('Espace facilitateur'), false);
 
-  assert.equal(indexContent.includes('Session privée'), true);
-  assert.equal(indexContent.includes('Les réponses sont transmises à la session et présentées uniquement sous forme agrégée au facilitateur.'), true);
-  assert.equal(indexContent.includes('Aucun nom n’est demandé. Le facilitateur ne voit que la répartition du groupe, jamais les choix individuels.'), true);
-
-  assert.equal(indexContent.includes('styles.css?v=20260805-session'), true);
-  assert.equal(indexContent.includes('src/app.js?v=20260805-session'), true);
+  // Simplified header must contain Team Pulse title
+  assert.equal(indexContent.includes('<h1 class="brand-title">Team Pulse</h1>'), true);
+  assert.equal(indexContent.includes('styles.css?v=20260806-checkin'), true);
+  assert.equal(indexContent.includes('src/app.js?v=20260806-checkin'), true);
 });
 
-test('Centralized live session pulse copy strings exist in COPY', () => {
-  assert.equal(COPY.receipt.heading, 'Votre réponse a rejoint le pouls.');
-  assert.equal(COPY.receipt.privacyExplanation, 'La personne qui anime voit uniquement le nombre de participations pendant la collecte.');
-  assert.equal(COPY.receipt.waitingStatement, 'La répartition sera révélée après la clôture des réponses.');
-  assert.equal(COPY.receipt.closingInstruction, 'Vous pouvez garder cette page ouverte ou la fermer.');
-  assert.equal(COPY.receipt.closedNotice, 'Les réponses sont maintenant closes. La répartition va être présentée par la personne qui anime.');
-  assert.equal(COPY.receipt.offlineNotice, 'Actualisation momentanément indisponible.');
+test('Centralized 30-second check-in copy strings exist in COPY in formal French', () => {
+  assert.equal(COPY.landing.heading, 'Prenez le pouls du groupe avant de commencer');
+  assert.equal(COPY.landing.body, 'Un check-in de 30 secondes, sans nom, pour une réunion, un atelier ou un cours.');
 
-  assert.equal(COPY.facilitatorDashboard.openHeading, 'Le pouls du groupe se construit');
-  assert.equal(COPY.facilitatorDashboard.emptyState, 'En attente des premières réponses…');
-  assert.equal(COPY.facilitatorDashboard.privacyNote, 'Les choix restent masqués jusqu’à la clôture.');
+  assert.equal(COPY.voting.heading, 'Comment vous sentez-vous en ce début de session ?');
+  assert.equal(COPY.voting.submitBtn, 'Envoyer ma réponse');
+
+  assert.equal(COPY.receipt.heading, 'Réponse envoyée');
+  assert.equal(COPY.receipt.body, 'Votre choix a bien été enregistré.');
+
+  assert.equal(COPY.facilitatorDashboard.heading, 'Session prête');
+  assert.equal(COPY.facilitatorDashboard.step1Title, '1. Partagez le lien');
+  assert.equal(COPY.facilitatorDashboard.step2Title, '2. Affichez les résultats');
+  assert.equal(COPY.facilitatorDashboard.emptyState, 'En attente de la première réponse.');
+
+  assert.equal(COPY.results.heading, 'Le groupe en ce début de session');
+  assert.equal(COPY.results.facilitationPromptHeading, 'Pour ouvrir l’échange');
+  assert.equal(COPY.results.facilitationPromptText, 'De quoi avons-nous besoin pour bien commencer cette session ?');
 });
