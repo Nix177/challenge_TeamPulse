@@ -1,5 +1,6 @@
 import { SUPABASE_CONFIG, isBackendConfigured } from './config.js';
 import { hashSha256 } from './session.js';
+import { createEmptyCounts } from './model.js';
 
 // Request timeout in milliseconds (8 seconds)
 const REQUEST_TIMEOUT_MS = 8000;
