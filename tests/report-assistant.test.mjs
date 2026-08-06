@@ -105,6 +105,20 @@ test('SECURITY: api/live-token.js uses ESM default export, official v1beta auth_
   assert.equal(htmlContent.includes('AIzaSy'), false, 'rapport-interactif.html must not contain API key');
 });
 
+test('GeminiLiveClient uses constrained v1beta WebSocket endpoint and same-origin /api/live-token route', () => {
+  const clientPath = path.resolve(process.cwd(), 'public/js/GeminiLiveClient.js');
+  const clientContent = fs.readFileSync(clientPath, 'utf8');
+
+  // Verify fetch path
+  assert.equal(clientContent.includes("fetch('/api/live-token'"), true, 'GeminiLiveClient must use explicit /api/live-token route');
+
+  // Verify constrained endpoint URL
+  assert.equal(clientContent.includes('v1beta.GenerativeService.BidiGenerateContentConstrained'), true, 'GeminiLiveClient must use v1beta BidiGenerateContentConstrained endpoint');
+  assert.equal(clientContent.includes('encodeURIComponent(token)'), true, 'GeminiLiveClient must encode token parameter with encodeURIComponent');
+  assert.equal(clientContent.includes('v1alpha.GenerativeService.BidiGenerateContent?access_token'), false, 'GeminiLiveClient must NOT use unconstrained v1alpha endpoint');
+  assert.equal(clientContent.includes('v1beta.GenerativeService.BidiGenerateContent?access_token'), false, 'GeminiLiveClient must NOT use unconstrained v1beta endpoint');
+});
+
 test('PcmAudioPlayer triggers onStart when playing and onIdle when stopped', () => {
   let started = false;
   let idled = false;

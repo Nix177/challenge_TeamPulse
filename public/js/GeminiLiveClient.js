@@ -59,7 +59,7 @@ export class GeminiLiveClient {
 
   async fetchToken() {
     try {
-      const res = await fetch('api/live-token', {
+      const res = await fetch('/api/live-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         cache: 'no-store'
@@ -94,7 +94,7 @@ export class GeminiLiveClient {
 
     return new Promise((resolve) => {
       try {
-        const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?access_token=${token}`;
+        const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained?access_token=${encodeURIComponent(token)}`;
         this.ws = new WebSocket(wsUrl);
 
         this.ws.onopen = () => {
