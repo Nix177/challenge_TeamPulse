@@ -9,6 +9,7 @@ import {
 } from '../public/js/TeamPulseReportRetriever.js';
 import { GeminiLiveClient, SYSTEM_INSTRUCTION } from '../public/js/GeminiLiveClient.js';
 import { PcmAudioPlayer } from '../public/js/PcmAudioPlayer.js';
+import { ReportAvatarAnimator } from '../public/js/ReportAvatarAnimator.js';
 
 test('RAG JSON loads successfully and contains all 49 unique chunks with required fields', async () => {
   const jsonPath = path.resolve(process.cwd(), 'public/data/team-pulse-rag.json');
@@ -181,16 +182,82 @@ test('_inputs/ directory is ignored in .gitignore and .vercelignore', () => {
   assert.equal(vercelignore.includes('_inputs/'), true, '.vercelignore must include _inputs/');
 });
 
-test('Avatar manifest and placeholder SVG exist and parse correctly under public assets', () => {
+test('Avatar manifest and WebP frames exist, parse correctly, and ordered frame-001 to frame-008', () => {
   const manifestPath = path.resolve(process.cwd(), 'public/assets/report-assistant/avatar-manifest.json');
-  const svgPath = path.resolve(process.cwd(), 'public/assets/report-assistant/placeholder-avatar.svg');
-
   assert.equal(fs.existsSync(manifestPath), true, 'avatar-manifest.json must exist');
-  assert.equal(fs.existsSync(svgPath), true, 'placeholder-avatar.svg must exist');
 
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-  assert.equal(typeof manifest.fps, 'number');
-  assert.equal(Array.isArray(manifest.speaking), true);
+  assert.equal(manifest.fps, 10, 'Manifest FPS should be 10');
+  assert.equal(Array.isArray(manifest.speaking), true, 'manifest.speaking must be an array');
+  assert.equal(manifest.speaking.length, 8, 'Exactly 8 speaking frames must be registered');
+
+  // Verify ordered frame-001 to frame-008
+  manifest.speaking.forEach((framePath, i) => {
+    const frameNum = String(i + 1).padStart(3, '0');
+    assert.equal(framePath.includes(`frame-${frameNum}.webp`), true, `Frame ${i} must be frame-${frameNum}.webp`);
+    const fullPath = path.resolve(process.cwd(), framePath);
+    assert.equal(fs.existsSync(fullPath), true, `Speaking frame ${framePath} must exist on disk`);
+  });
+
+  // Verify idle, listening, thinking images exist on disk
+  ['idle', 'listening', 'thinking'].forEach(state => {
+    assert.equal(Array.isArray(manifest[state]), true, `manifest.${state} must be array`);
+    manifest[state].forEach(filePath => {
+      const fullPath = path.resolve(process.cwd(), filePath);
+      assert.equal(fs.existsSync(fullPath), true, `Asset ${filePath} for ${state} must exist on disk`);
+    });
+  });
+
+  // Verify HTML no longer references placeholder
+  const htmlContent = fs.readFileSync(path.resolve(process.cwd(), 'rapport-interactif.html'), 'utf8');
+  assert.equal(htmlContent.includes('placeholder-avatar.svg'), false, 'rapport-interactif.html must not use placeholder-avatar.svg at runtime');
+  assert.equal(htmlContent.includes('idle.webp'), true, 'rapport-interactif.html must reference idle.webp');
+});
+
+test('ReportAvatarAnimator state machine and reduced motion support', async () => {
+  class MockElement {
+    constructor() {
+      this._src = '';
+      this.attributes = {};
+    }
+    get src() { return this._src; }
+    set src(v) { this._src = v; }
+    setAttribute(k, v) { this.attributes[k] = v; }
+    getAttribute(k) { return k === 'src' ? this._src : (this.attributes[k] || null); }
+    querySelector() { return null; }
+    appendChild() {}
+  }
+
+  const container = new MockElement();
+  const imgEl = new MockElement();
+  const animator = new ReportAvatarAnimator({ containerEl: container, imgEl: imgEl });
+  await new Promise(r => setTimeout(r, 10));
+  animator.manifest = {
+    fps: 10,
+    idle: ['public/assets/report-assistant/idle.webp'],
+    speaking: Array.from({ length: 8 }, (_, i) => `public/assets/report-assistant/speaking/frame-00${i+1}.webp`)
+  };
+
+  // Idle state
+  animator.setState('idle');
+  assert.equal(animator.imgEl.src, 'public/assets/report-assistant/idle.webp');
+
+  // Speaking state (normal motion)
+  animator.reducedMotion = false;
+  animator.setState('speaking');
+  assert.equal(animator.currentState, 'speaking');
+  assert.notEqual(animator.animationTimer, null);
+
+  // Stop speaking
+  animator.setState('idle');
+  assert.equal(animator.animationTimer, null);
+  assert.equal(animator.imgEl.src, 'public/assets/report-assistant/idle.webp');
+
+  // Reduced motion
+  animator.reducedMotion = true;
+  animator.setState('speaking');
+  assert.equal(animator.animationTimer, null, 'Reduced motion must not start interval timer');
+  assert.equal(animator.imgEl.src, 'public/assets/report-assistant/speaking/frame-001.webp');
 });
 
 test('GeminiLiveClient WebSocket setupComplete handshake lifecycle', async () => {

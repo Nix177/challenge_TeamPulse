@@ -1,7 +1,22 @@
 {
-  "fps": 12,
-  "idle": ["public/assets/report-assistant/placeholder-avatar.svg"],
-  "listening": ["public/assets/report-assistant/placeholder-avatar.svg"],
-  "thinking": ["public/assets/report-assistant/placeholder-avatar.svg"],
-  "speaking": ["public/assets/report-assistant/placeholder-avatar.svg"]
+  "fps": 10,
+  "idle": [
+    "public/assets/report-assistant/idle.webp"
+  ],
+  "listening": [
+    "public/assets/report-assistant/listening.webp"
+  ],
+  "thinking": [
+    "public/assets/report-assistant/thinking.webp"
+  ],
+  "speaking": [
+    "public/assets/report-assistant/speaking/frame-001.webp",
+    "public/assets/report-assistant/speaking/frame-002.webp",
+    "public/assets/report-assistant/speaking/frame-003.webp",
+    "public/assets/report-assistant/speaking/frame-004.webp",
+    "public/assets/report-assistant/speaking/frame-005.webp",
+    "public/assets/report-assistant/speaking/frame-006.webp",
+    "public/assets/report-assistant/speaking/frame-007.webp",
+    "public/assets/report-assistant/speaking/frame-008.webp"
+  ]
 }

@@ -1,64 +1,77 @@
 /**
  * ReportAvatarAnimator — Image Sequence Character Animator for Report Assistant
  * 
- * Preloads frames from avatar-manifest.json and handles idle, listening, thinking,
- * and speaking states cleanly with reduced-motion and missing-image support.
+ * Preloads WebP frames from avatar-manifest.json and handles idle, listening, thinking,
+ * and speaking states with reduced-motion and image-load error resilience.
  */
 export class ReportAvatarAnimator {
-  constructor({ containerEl, manifestPath = 'public/assets/report-assistant/avatar-manifest.json' }) {
+  constructor({ containerEl, imgEl, manifestPath = 'public/assets/report-assistant/avatar-manifest.json' }) {
     this.containerEl = containerEl;
+    this.imgEl = imgEl || null;
     this.manifestPath = manifestPath;
-    this.imgEl = null;
     this.manifest = null;
     this.currentState = 'idle';
     this.currentFrameIndex = 0;
     this.animationTimer = null;
     this.preloadedImages = new Map();
-    this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    this.reducedMotion = typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)').matches : false;
 
     this.init();
   }
 
   async init() {
-    if (!this.containerEl) return;
-
-    // Create img element inside container if not present
-    this.imgEl = this.containerEl.querySelector('img');
-    if (!this.imgEl) {
+    if (!this.imgEl && this.containerEl && typeof this.containerEl.querySelector === 'function') {
+      this.imgEl = this.containerEl.querySelector('img');
+    }
+    if (!this.imgEl && typeof document !== 'undefined' && typeof document.createElement === 'function') {
       this.imgEl = document.createElement('img');
       this.imgEl.className = 'report-avatar-image';
       this.imgEl.alt = 'Assistant Rapport Team Pulse';
-      this.containerEl.appendChild(this.imgEl);
+      if (this.containerEl && typeof this.containerEl.appendChild === 'function') {
+        this.containerEl.appendChild(this.imgEl);
+      }
+    }
+
+    if (this.imgEl) {
+      this.imgEl.onerror = () => {
+        if (this.imgEl.getAttribute('src') !== 'public/assets/report-assistant/idle.webp') {
+          this.imgEl.src = 'public/assets/report-assistant/idle.webp';
+        }
+      };
     }
 
     try {
-      const res = await fetch(this.manifestPath);
-      if (res.ok) {
-        this.manifest = await res.json();
-        this.preloadAll();
+      if (typeof fetch === 'function') {
+        const res = await fetch(this.manifestPath);
+        if (res.ok) {
+          this.manifest = await res.json();
+          this.preloadAll();
+        }
       }
     } catch (e) {
-      console.warn('[ReportAvatarAnimator] Failed to load manifest, using fallback placeholder:', e);
+      console.warn('[ReportAvatarAnimator] Failed to load manifest, using default assets:', e.message);
     }
 
     // Default fallback image
-    if (!this.imgEl.src) {
-      this.imgEl.src = 'public/assets/report-assistant/placeholder-avatar.svg';
+    if (this.imgEl && (!this.imgEl.src || this.imgEl.src.endsWith('placeholder-avatar.svg'))) {
+      this.imgEl.src = 'public/assets/report-assistant/idle.webp';
     }
 
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) {
-        this.stopLoop();
-      } else if (this.currentState === 'speaking') {
-        this.startSpeakingLoop();
-      }
-    });
+    if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          this.stopLoop();
+        } else if (this.currentState === 'speaking' && !this.reducedMotion) {
+          this.startSpeakingLoop();
+        }
+      });
+    }
 
     this.updateDisplay();
   }
 
   preloadAll() {
-    if (!this.manifest) return;
+    if (!this.manifest || typeof Image === 'undefined') return;
     const states = ['idle', 'listening', 'thinking', 'speaking'];
     states.forEach(state => {
       const frames = this.manifest[state];
@@ -79,7 +92,8 @@ export class ReportAvatarAnimator {
     this.currentState = newState;
     this.currentFrameIndex = 0;
 
-    if (newState === 'speaking' && !this.reducedMotion && !document.hidden) {
+    const isHidden = (typeof document !== 'undefined' && document.hidden);
+    if (newState === 'speaking' && !this.reducedMotion && !isHidden) {
       this.startSpeakingLoop();
     } else {
       this.stopLoop();
@@ -89,13 +103,13 @@ export class ReportAvatarAnimator {
 
   startSpeakingLoop() {
     this.stopLoop();
-    const fps = (this.manifest && this.manifest.fps) ? this.manifest.fps : 12;
+    const fps = (this.manifest && typeof this.manifest.fps === 'number') ? this.manifest.fps : 10;
     const interval = Math.max(40, 1000 / fps);
 
     this.animationTimer = setInterval(() => {
       const frames = (this.manifest && Array.isArray(this.manifest.speaking) && this.manifest.speaking.length > 0)
         ? this.manifest.speaking
-        : ['public/assets/report-assistant/placeholder-avatar.svg'];
+        : ['public/assets/report-assistant/idle.webp'];
 
       this.currentFrameIndex = (this.currentFrameIndex + 1) % frames.length;
       this.updateDisplay();
@@ -116,11 +130,16 @@ export class ReportAvatarAnimator {
     if (this.manifest && Array.isArray(this.manifest[this.currentState]) && this.manifest[this.currentState].length > 0) {
       frames = this.manifest[this.currentState];
     } else {
-      frames = ['public/assets/report-assistant/placeholder-avatar.svg'];
+      frames = ['public/assets/report-assistant/idle.webp'];
+    }
+
+    // In reduced motion mode for speaking, stick to first speaking frame cleanly
+    if (this.currentState === 'speaking' && this.reducedMotion) {
+      this.currentFrameIndex = 0;
     }
 
     const index = Math.min(this.currentFrameIndex, frames.length - 1);
-    const targetSrc = frames[index] || 'public/assets/report-assistant/placeholder-avatar.svg';
+    const targetSrc = frames[index] || 'public/assets/report-assistant/idle.webp';
 
     if (this.imgEl.getAttribute('src') !== targetSrc) {
       this.imgEl.src = targetSrc;
