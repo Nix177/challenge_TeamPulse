@@ -10,22 +10,24 @@ import {
 import { SYSTEM_INSTRUCTION } from '../public/js/GeminiLiveClient.js';
 import { PcmAudioPlayer } from '../public/js/PcmAudioPlayer.js';
 
-test('RAG JSON loads successfully and JSONL conversion retains all 49 chunk IDs and content', async () => {
+test('RAG JSON loads successfully and contains all 49 unique chunks with required fields', async () => {
   const jsonPath = path.resolve(process.cwd(), 'public/data/team-pulse-rag.json');
-  const jsonlPath = path.resolve(process.cwd(), '_inputs/Team_Pulse_RAG_chunks.jsonl');
-
   assert.equal(fs.existsSync(jsonPath), true, 'public/data/team-pulse-rag.json must exist');
-  assert.equal(fs.existsSync(jsonlPath), true, '_inputs/Team_Pulse_RAG_chunks.jsonl must exist');
 
   const jsonContent = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
-  const jsonlLines = fs.readFileSync(jsonlPath, 'utf8')
-    .split('\n')
-    .map(l => l.trim())
-    .filter(l => l.length > 0);
-
   assert.equal(Array.isArray(jsonContent), true);
-  assert.equal(jsonContent.length, jsonlLines.length, 'JSON array length must match JSONL line count');
-  assert.equal(jsonContent.length, 49, 'Corpus must contain 49 chunks');
+  assert.equal(jsonContent.length, 49, 'Corpus must contain 49 unique chunks');
+
+  // Verify unique IDs and mandatory fields
+  const ids = new Set(jsonContent.map(c => c.id));
+  assert.equal(ids.size, 49, 'All 49 chunk IDs must be unique');
+
+  jsonContent.forEach(c => {
+    assert.equal(typeof c.id, 'string');
+    assert.equal(typeof c.title, 'string');
+    assert.equal(typeof c.text, 'string');
+    assert.equal(c.text.length > 0, true);
+  });
 
   // Verify first and last chunk IDs
   assert.equal(jsonContent[0].id, 'summary');
