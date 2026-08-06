@@ -885,55 +885,11 @@ body {
   line-height: 1.4;
 }
 
-/* Conversation Card with Dialogue Motif */
-.conversation-card {
-  background: linear-gradient(135deg, #f0f7f4 0%, #e6f2ed 100%);
-  border: 1px solid rgba(18, 106, 90, 0.25);
-  border-radius: var(--radius-md);
-  padding: 2.25rem;
-  margin-bottom: 2.5rem;
-  position: relative;
-  box-shadow: var(--shadow-subtle);
-}
-
-.conversation-card::before {
-  content: "“";
-  position: absolute;
-  top: 0.5rem;
-  right: 1.5rem;
-  font-size: 5rem;
-  color: rgba(18, 106, 90, 0.12);
-  font-family: Georgia, serif;
-  line-height: 1;
-  pointer-events: none;
-}
-
-.conversation-prompt-heading {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--ink);
-  margin-bottom: 0.75rem;
-}
-
-.conversation-prompt-text {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--accent-strong);
-  line-height: 1.45;
-  margin-bottom: 1rem;
-}
-
-.conversation-instruction {
-  font-size: 0.9rem;
-  color: var(--ink-soft);
-  font-style: italic;
-}
-
 .results-disclaimer {
   font-size: 0.85rem;
-  color: var(--ink-faint);
-  font-style: italic;
-  margin-bottom: 2rem;
+  color: var(--ink-soft);
+  text-align: center;
+  margin: 1.25rem 0 2rem 0;
 }
 
 /* Inline status feedback container */
@@ -1122,92 +1078,104 @@ body {
   }
 }
 
-/* Horizontal 100% Stacked Bar Chart */
-.visualisation-card {
+/* Pulse Profile Visualization */
+.pulse-profile-card {
   background: var(--surface-raised);
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
-  padding: 1.5rem;
+  padding: 1.5rem 1rem 1.25rem 1rem;
+  margin: 1.5rem 0;
+  box-shadow: var(--shadow-subtle);
 }
 
-.stacked-bar-container {
+.pulse-profile-svg {
   width: 100%;
-  margin: 1.5rem 0 2rem 0;
+  height: auto;
+  max-height: 240px;
+  display: block;
+  overflow: visible;
 }
 
-.stacked-bar-track {
-  display: flex;
-  height: 36px;
-  width: 100%;
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  background: var(--canvas-deep);
-  border: 1px solid var(--line);
+@keyframes pulseDotRise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.stacked-bar-segment {
-  height: 100%;
-  transition: width var(--transition-reveal);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  font-size: 0.85rem;
-  font-weight: 700;
+@keyframes pulseLineFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
-.stacked-legend-list {
+.pulse-dot {
+  animation: pulseDotRise 0.4s ease-out backwards;
+  transform-origin: center;
+}
+
+.pulse-profile-line {
+  animation: pulseLineFade 0.5s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse-dot, .pulse-profile-line {
+    animation: none !important;
+  }
+}
+
+.pulse-profile-summary {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+
+.pulse-summary-column {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  margin-top: 1.25rem;
-}
-
-.stacked-legend-item {
-  display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0.75rem 1rem;
-  background: var(--surface-raised);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
 }
 
-.stacked-legend-label-group {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
+.pulse-summary-column.is-muted {
+  opacity: 0.5;
 }
 
-.stacked-legend-color-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  flex-shrink: 0;
+.pulse-summary-column.is-active {
+  opacity: 1;
 }
 
-.stacked-legend-label {
+.pulse-summary-label {
+  font-size: 0.8rem;
   font-weight: 600;
-  font-size: 0.95rem;
   color: var(--ink);
+  line-height: 1.3;
+  margin-bottom: 0.25rem;
 }
 
-.stacked-legend-metrics {
-  display: flex;
-  align-items: center;
-  gap: 0.85rem;
-  font-size: 0.9rem;
-}
-
-.stacked-legend-count {
+.pulse-summary-metrics {
+  font-size: 0.85rem;
   font-weight: 700;
-  color: var(--ink);
+  color: var(--accent-strong);
 }
 
-.stacked-legend-pct {
-  color: var(--ink-soft);
-  min-width: 40px;
-  text-align: right;
+@media (max-width: 500px) {
+  .pulse-summary-label {
+    font-size: 0.72rem;
+  }
+  .pulse-summary-metrics {
+    font-size: 0.78rem;
+  }
 }
 
 /* Confirmation Modal Backdrop */

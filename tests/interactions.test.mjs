@@ -62,6 +62,33 @@ test('Open facilitator dashboard and revealed results page both contain Actualis
   assert.equal(resultRefreshSection.includes('apiCloseRoom'), false, 'Result refresh must NOT call apiCloseRoom');
 });
 
+test('Pulse Profile replaces obsolete stacked bar and facilitation card', () => {
+  const appPath = path.resolve(process.cwd(), 'src/app.js');
+  const appContent = fs.readFileSync(appPath, 'utf8');
+  const stylesPath = path.resolve(process.cwd(), 'styles.css');
+  const stylesContent = fs.readFileSync(stylesPath, 'utf8');
+
+  // Verify obsolete stacked bar & 5 row markup are absent from app.js & styles.css
+  assert.equal(appContent.includes('stacked-bar-container'), false, 'Stacked bar container must be absent');
+  assert.equal(stylesContent.includes('stacked-bar-container'), false, 'Stacked bar CSS must be absent');
+  assert.equal(stylesContent.includes('stacked-legend-item'), false, 'Stacked legend CSS must be absent');
+
+  // Verify facilitation card & question are absent
+  assert.equal(appContent.includes('Pour ouvrir l’échange'), false, 'Pour ouvrir l’échange card must be absent');
+  assert.equal(appContent.includes('De quoi avons-nous besoin pour bien commencer cette session ?'), false, 'Fixed facilitation question must be absent');
+  assert.equal(appContent.includes('conversation-card'), false, 'conversation-card markup must be absent');
+
+  // Verify shared visualization function renderCollectiveResultVisualization is used by both views
+  assert.equal(appContent.includes('renderCollectiveResultVisualization('), true, 'app.js must call shared renderCollectiveResultVisualization helper');
+
+  // Verify disclaimer sentence remains
+  assert.equal(COPY.results.disclaimer, 'Un instantané du groupe, pas une évaluation.');
+  assert.equal(appContent.includes('COPY.results.disclaimer'), true, 'app.js must render COPY.results.disclaimer');
+
+  // Verify participant choice reminder remains present in participant view
+  assert.equal(appContent.includes('participant-receipt-choice-box'), true, 'Participant receipt choice box must remain present');
+});
+
 test('Inline status CSS rules exist for restrained feedback', () => {
   const stylesPath = path.resolve(process.cwd(), 'styles.css');
   const stylesContent = fs.readFileSync(stylesPath, 'utf8');

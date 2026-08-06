@@ -4,13 +4,13 @@ import {
   getTotalVotes,
   createDemoCounts
 } from './model.js';
-import { FACILITATION_PROMPT } from './insight.js';
 import {
   COPY,
   formatRoomResponseCount
 } from './copy.js';
 import {
-  generateStackedBarVisualization,
+  generatePulseProfileData,
+  renderCollectiveResultVisualization,
   hasValidCounts
 } from './visualisation.js';
 import {
@@ -650,12 +650,12 @@ function renderReceiptView() {
  * Render Revealed Collective Results for Participant
  */
 function renderParticipantRevealedView(selectedOpt) {
-  const { total, segments } = generateStackedBarVisualization(roomCounts);
+  const { total } = generatePulseProfileData(roomCounts);
 
   viewCardEl.innerHTML = `
     <span class="step-badge">Session ${activeRoomCode}</span>
     <h2 class="main-heading">${COPY.results.heading}</h2>
-    <p class="subheading">${COPY.results.formatTotal(total)}</p>
+    <p class="subheading" style="font-weight: 700; color: var(--accent-strong);">${COPY.results.formatTotal(total)}</p>
 
     ${selectedOpt ? `
       <div class="participant-receipt-choice-box" style="margin-bottom: 1.5rem;">
@@ -667,43 +667,9 @@ function renderParticipantRevealedView(selectedOpt) {
       </div>
     ` : ''}
 
-    <div class="visualisation-card">
-      <div class="stacked-bar-container">
-        <div class="stacked-bar-track" aria-label="Répartition du groupe: ${segments.map(s => `${s.label} ${s.percentage}%`).join(', ')}">
-          ${segments.map(s => s.percentage > 0 ? `
-            <div 
-              class="stacked-bar-segment" 
-              style="width: ${s.percentage}%; background-color: ${s.colorHex};"
-              title="${s.label} : ${s.count} (${s.percentage}%)"
-            >
-              ${s.percentage >= 8 ? `${s.percentage}%` : ''}
-            </div>
-          ` : '').join('')}
-        </div>
+    ${renderCollectiveResultVisualization(roomCounts)}
 
-        <div class="stacked-legend-list">
-          ${segments.map(s => `
-            <div class="stacked-legend-item">
-              <div class="stacked-legend-label-group">
-                <span class="stacked-legend-color-dot" style="background-color: ${s.colorHex};"></span>
-                ${OPTION_SYMBOLS[s.id]}
-                <span class="stacked-legend-label">${s.label}</span>
-              </div>
-              <div class="stacked-legend-metrics">
-                <span class="stacked-legend-count">${s.count}</span>
-                <span class="stacked-legend-pct">${s.percentage}%</span>
-              </div>
-            </div>
-          `).join('')}
-        </div>
-      </div>
-    </div>
-
-    <div class="conversation-card" style="margin-top: 1.5rem;">
-      <h3 class="conversation-prompt-heading">${FACILITATION_PROMPT.heading}</h3>
-      <p class="conversation-prompt-text">${FACILITATION_PROMPT.text}</p>
-      <p class="conversation-instruction">${FACILITATION_PROMPT.supporting}</p>
-    </div>
+    <p class="results-disclaimer">${COPY.results.disclaimer}</p>
   `;
 }
 
@@ -875,49 +841,15 @@ function renderFacilitatorDashboardView() {
  * View 5: Facilitator Revealed Results View (Horizontal 100% Stacked Bar Chart)
  */
 function renderFacilitatorRevealedView() {
-  const { total, segments } = generateStackedBarVisualization(roomCounts);
+  const { total } = generatePulseProfileData(roomCounts);
 
   viewCardEl.innerHTML = `
     <h2 class="main-heading">${COPY.results.heading}</h2>
     <p class="subheading" style="font-weight: 700; color: var(--accent-strong);">${COPY.results.formatTotal(total)}</p>
 
-    <div class="visualisation-card">
-      <div class="stacked-bar-container">
-        <div class="stacked-bar-track" aria-label="Répartition du groupe: ${segments.map(s => `${s.label} ${s.percentage}%`).join(', ')}">
-          ${segments.map(s => s.percentage > 0 ? `
-            <div 
-              class="stacked-bar-segment" 
-              style="width: ${s.percentage}%; background-color: ${s.colorHex};"
-              title="${s.label} : ${s.count} (${s.percentage}%)"
-            >
-              ${s.percentage >= 8 ? `${s.percentage}%` : ''}
-            </div>
-          ` : '').join('')}
-        </div>
+    ${renderCollectiveResultVisualization(roomCounts)}
 
-        <div class="stacked-legend-list">
-          ${segments.map(s => `
-            <div class="stacked-legend-item">
-              <div class="stacked-legend-label-group">
-                <span class="stacked-legend-color-dot" style="background-color: ${s.colorHex};"></span>
-                ${OPTION_SYMBOLS[s.id]}
-                <span class="stacked-legend-label">${s.label}</span>
-              </div>
-              <div class="stacked-legend-metrics">
-                <span class="stacked-legend-count">${s.count}</span>
-                <span class="stacked-legend-pct">${s.percentage}%</span>
-              </div>
-            </div>
-          `).join('')}
-        </div>
-      </div>
-    </div>
-
-    <div class="conversation-card" style="margin-top: 1.5rem;">
-      <h3 class="conversation-prompt-heading">${FACILITATION_PROMPT.heading}</h3>
-      <p class="conversation-prompt-text">${FACILITATION_PROMPT.text}</p>
-      <p class="conversation-instruction">${FACILITATION_PROMPT.supporting}</p>
-    </div>
+    <p class="results-disclaimer">${COPY.results.disclaimer}</p>
 
     <div class="action-bar" style="margin-top: 2rem;">
       <button id="btn-create-new-session" class="btn btn-primary">${COPY.results.newSessionBtn}</button>

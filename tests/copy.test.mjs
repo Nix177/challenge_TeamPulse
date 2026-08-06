@@ -69,6 +69,5 @@ test('Centralized 30-second check-in copy strings exist in COPY in formal French
   assert.equal(COPY.facilitatorDashboard.emptyState, 'En attente de la première réponse.');
 
   assert.equal(COPY.results.heading, 'Le groupe en ce début de session');
-  assert.equal(COPY.results.facilitationPromptHeading, 'Pour ouvrir l’échange');
-  assert.equal(COPY.results.facilitationPromptText, 'De quoi avons-nous besoin pour bien commencer cette session ?');
+  assert.equal(COPY.results.disclaimer, 'Un instantané du groupe, pas une évaluation.');
 });

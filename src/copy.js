@@ -85,9 +85,7 @@ export const COPY = Object.freeze({
   results: {
     heading: 'Le groupe en ce début de session',
     formatTotal: (total) => total <= 1 ? `${total} réponse` : `${total} réponses`,
-    facilitationPromptHeading: 'Pour ouvrir l’échange',
-    facilitationPromptText: 'De quoi avons-nous besoin pour bien commencer cette session ?',
-    facilitationPromptSub: 'Un instantané du groupe, pas une évaluation.',
+    disclaimer: 'Un instantané du groupe, pas une évaluation.',
     newSessionBtn: 'Créer une nouvelle session',
     refreshBtn: 'Actualiser',
     refreshBtnLoading: 'Actualisation…',
