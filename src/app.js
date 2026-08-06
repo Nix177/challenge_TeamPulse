@@ -10,7 +10,8 @@ import {
   formatRoomResponseCount
 } from './copy.js';
 import {
-  generateStackedBarVisualization
+  generateStackedBarVisualization,
+  hasValidCounts
 } from './visualisation.js';
 import {
   generateRoomCode,
