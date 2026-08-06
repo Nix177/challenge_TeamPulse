@@ -620,7 +620,7 @@ function renderParticipantRevealedView(selectedOpt) {
       </div>
     </div>
 
-    <div class="conversation-prompt-card" style="margin-top: 1.5rem;">
+    <div class="conversation-card" style="margin-top: 1.5rem;">
       <h3 class="conversation-prompt-heading">${FACILITATION_PROMPT.heading}</h3>
       <p class="conversation-prompt-text">${FACILITATION_PROMPT.text}</p>
       <p class="conversation-instruction">${FACILITATION_PROMPT.supporting}</p>
@@ -813,7 +813,7 @@ function renderFacilitatorRevealedView() {
       </div>
     </div>
 
-    <div class="conversation-prompt-card" style="margin-top: 1.5rem;">
+    <div class="conversation-card" style="margin-top: 1.5rem;">
       <h3 class="conversation-prompt-heading">${FACILITATION_PROMPT.heading}</h3>
       <p class="conversation-prompt-text">${FACILITATION_PROMPT.text}</p>
       <p class="conversation-instruction">${FACILITATION_PROMPT.supporting}</p>

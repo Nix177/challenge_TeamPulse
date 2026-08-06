@@ -906,6 +906,13 @@ body {
   pointer-events: none;
 }
 
+.conversation-prompt-heading {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 0.75rem;
+}
+
 .conversation-prompt-text {
   font-size: 1.25rem;
   font-weight: 700;
@@ -1098,6 +1105,13 @@ body {
 }
 
 /* Horizontal 100% Stacked Bar Chart */
+.visualisation-card {
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+}
+
 .stacked-bar-container {
   width: 100%;
   margin: 1.5rem 0 2rem 0;
