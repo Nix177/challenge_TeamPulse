@@ -69,12 +69,25 @@ test('SYSTEM_INSTRUCTION contains strict grounding rules and forbids invented cl
   assert.equal(SYSTEM_INSTRUCTION.includes('vibe coding'), true);
 });
 
-test('API key is only referenced in api/live-token.js and no client file contains secret keys', () => {
+test('SECURITY: api/live-token.js uses ESM default export, official v1beta auth_tokens, x-goog-api-key, and NEVER leaks permanent key', async () => {
   const tokenApiPath = path.resolve(process.cwd(), 'api/live-token.js');
   const tokenApiContent = fs.readFileSync(tokenApiPath, 'utf8');
 
-  assert.equal(tokenApiContent.includes('process.env.GOOGLE_API_KEY'), true, 'api/live-token.js must reference process.env.GOOGLE_API_KEY');
+  // Verify ESM export format
+  assert.equal(tokenApiContent.includes('export default async function handler'), true, 'api/live-token.js must use ESM default export');
+  assert.equal(tokenApiContent.includes('module.exports'), false, 'api/live-token.js must NOT use CommonJS module.exports');
 
+  // Verify endpoint and header
+  assert.equal(tokenApiContent.includes('https://generativelanguage.googleapis.com/v1beta/auth_tokens'), true, 'Must use official /v1beta/auth_tokens endpoint');
+  assert.equal(tokenApiContent.includes('x-goog-api-key'), true, 'Must send x-goog-api-key header');
+  assert.equal(tokenApiContent.includes('v1alpha/tokens'), false, 'Must NOT use obsolete v1alpha/tokens endpoint');
+
+  // Verify ZERO API key fallbacks or leaks
+  assert.equal(tokenApiContent.includes('token: apiKey'), false, 'Must NEVER return token: apiKey');
+  assert.equal(tokenApiContent.includes('data.token || data.name || apiKey'), false, 'Must NEVER fallback to returning apiKey');
+  assert.equal(tokenApiContent.includes('res.status(502)'), true, 'Must return HTTP 502 on upstream failure');
+
+  // Verify client files do not contain keys
   const publicJsDir = path.resolve(process.cwd(), 'public/js');
   const publicFiles = fs.readdirSync(publicJsDir);
 
@@ -104,7 +117,6 @@ test('PcmAudioPlayer triggers onStart when playing and onIdle when stopped', () 
   player.stop();
   assert.equal(idled, false, 'Idle should not trigger if never played');
 
-  // Verify volume and mute helpers
   player.setVolume(0.5);
   assert.equal(player.volume, 0.5);
   player.setMute(true);
@@ -143,4 +155,24 @@ test('No localStorage or persistent storage is used in report assistant client c
       assert.equal(content.includes('sessionStorage.setItem'), false, `${file} must not use sessionStorage.setItem`);
     }
   });
+});
+
+test('_inputs/ directory is ignored in .gitignore and .vercelignore', () => {
+  const gitignore = fs.readFileSync(path.resolve(process.cwd(), '.gitignore'), 'utf8');
+  const vercelignore = fs.readFileSync(path.resolve(process.cwd(), '.vercelignore'), 'utf8');
+
+  assert.equal(gitignore.includes('_inputs/'), true, '.gitignore must include _inputs/');
+  assert.equal(vercelignore.includes('_inputs/'), true, '.vercelignore must include _inputs/');
+});
+
+test('Avatar manifest and placeholder SVG exist and parse correctly under public assets', () => {
+  const manifestPath = path.resolve(process.cwd(), 'public/assets/report-assistant/avatar-manifest.json');
+  const svgPath = path.resolve(process.cwd(), 'public/assets/report-assistant/placeholder-avatar.svg');
+
+  assert.equal(fs.existsSync(manifestPath), true, 'avatar-manifest.json must exist');
+  assert.equal(fs.existsSync(svgPath), true, 'placeholder-avatar.svg must exist');
+
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  assert.equal(typeof manifest.fps, 'number');
+  assert.equal(Array.isArray(manifest.speaking), true);
 });

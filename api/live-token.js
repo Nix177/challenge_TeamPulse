@@ -1,8 +1,9 @@
 /**
  * Vercel Serverless Function: Ephemeral Token Provider for Gemini Live WebSockets
  * 
- * Securely requests a short-lived, single-use token from the Google Gemini API.
- * The permanent GOOGLE_API_KEY remains strictly server-side.
+ * Securely requests a short-lived, single-use auth token from Google Gemini API
+ * using the official /v1beta/auth_tokens endpoint.
+ * The permanent GOOGLE_API_KEY remains strictly server-side and is NEVER returned.
  */
 
 const rateLimitMap = new Map();
@@ -37,7 +38,7 @@ function checkRateLimit(ip) {
   return true;
 }
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   // Set anti-caching headers immediately
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.setHeader('Pragma', 'no-cache');
@@ -56,7 +57,7 @@ module.exports = async function handler(req, res) {
   }
 
   // Rate Limiting
-  const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+  const clientIp = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown';
   if (!checkRateLimit(clientIp)) {
     return res.status(429).json({ ok: false, error: 'Too Many Requests' });
   }
@@ -72,51 +73,52 @@ module.exports = async function handler(req, res) {
   const model = process.env.GEMINI_LIVE_MODEL || 'gemini-3.1-flash-live-preview';
   const voice = process.env.GEMINI_LIVE_VOICE || 'Sadaltager';
 
+  const nowMs = Date.now();
+  const expireTimeStr = new Date(nowMs + 30 * 60 * 1000).toISOString();
+  const newSessionExpireTimeStr = new Date(nowMs + 60 * 1000).toISOString();
+
   try {
-    // Request short-lived token from Google Gemini API
-    const googleRes = await fetch(`https://generativelanguage.googleapis.com/v1alpha/tokens?key=${apiKey}`, {
+    const googleRes = await fetch('https://generativelanguage.googleapis.com/v1beta/auth_tokens', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey
       },
       body: JSON.stringify({
-        ttl: '300s',
-        uses: 1
+        uses: 1,
+        expireTime: expireTimeStr,
+        newSessionExpireTime: newSessionExpireTimeStr
       })
     });
 
     if (!googleRes.ok) {
-      // If token generation API returns non-200 (e.g. if key tier requires direct ws key or alternative endpoint)
-      const errText = await googleRes.text();
-      // If Google returns token creation error, return sanitized response (never log full key)
-      console.error('[live-token] Google token API error status:', googleRes.status);
-      
-      // Fallback token object if server apiKey can be passed directly as token in authorized environments
-      return res.status(200).json({
-        ok: true,
-        token: apiKey,
-        model,
-        voice,
-        expiresAt: Date.now() + 300 * 1000
+      return res.status(502).json({
+        ok: false,
+        error: 'Upstream token creation failed'
       });
     }
 
     const data = await googleRes.json();
-    const token = data.token || data.name || apiKey;
-    const expiresAt = data.expireTime ? new Date(data.expireTime).getTime() : (Date.now() + 300 * 1000);
+    const ephemeralToken = data.token?.name || data.name;
+
+    if (!ephemeralToken) {
+      return res.status(502).json({
+        ok: false,
+        error: 'Missing token in upstream response'
+      });
+    }
 
     return res.status(200).json({
       ok: true,
-      token,
-      model,
-      voice,
-      expiresAt
+      token: ephemeralToken,
+      model: model,
+      voice: voice,
+      expiresAt: new Date(expireTimeStr).getTime()
     });
   } catch (err) {
-    console.error('[live-token] Failed to create token:', err.message);
-    return res.status(500).json({
+    return res.status(502).json({
       ok: false,
-      error: 'Failed to create ephemeral live token.'
+      error: 'Upstream connection error'
     });
   }
-};
+}
