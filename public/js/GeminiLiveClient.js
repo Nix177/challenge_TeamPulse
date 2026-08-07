@@ -2,6 +2,7 @@
  * GeminiLiveClient — WebSocket Client for Gemini Live API & RAG Tool Handling
  * 
  * Manages WebSocket connection to Gemini Live, handles setupComplete handshake,
+ * inputAudioTranscription / outputAudioTranscription event accumulation,
  * toolCall / toolResponse for retrieve_team_pulse_report_context, streams 24kHz PCM
  * audio to PcmAudioPlayer, and handles text / microphone input.
  */
@@ -49,6 +50,11 @@ export class GeminiLiveClient {
     this.setupTimeout = null;
     this.manualClose = false;
     this.isSetupComplete = false;
+
+    // Per-turn audio transcription accumulation buffers
+    this.currentInputTranscript = '';
+    this.currentOutputTranscript = '';
+    this.isTypedQuestion = false;
 
     // Connect audio player callbacks to state
     if (this.audioPlayer) {
@@ -165,7 +171,6 @@ export class GeminiLiveClient {
           };
 
           this.ws.onclose = () => {
-            const wasConnected = this.isSetupComplete;
             this.isSetupComplete = false;
             if (this.rejectSetup) {
               this.rejectSetup(new Error('La connexion WebSocket s’est fermée avant la fin de l’initialisation.'));
@@ -218,6 +223,8 @@ export class GeminiLiveClient {
         systemInstruction: {
           parts: [{ text: SYSTEM_INSTRUCTION }]
         },
+        inputAudioTranscription: {},
+        outputAudioTranscription: {},
         tools: [
           {
             functionDeclarations: [
@@ -304,17 +311,38 @@ export class GeminiLiveClient {
       return;
     }
 
+    // Accumulate input transcription chunks (microphone speech from visitor)
+    const inputChunk = msg.serverContent?.inputTranscription?.text ||
+                       msg.serverContent?.inputAudioTranscription?.text ||
+                       msg.inputTranscription?.text ||
+                       msg.inputAudioTranscription?.text;
+
+    if (inputChunk && !this.isTypedQuestion) {
+      this.currentInputTranscript += inputChunk;
+    }
+
+    // Accumulate output transcription chunks (Gemini spoken answer)
+    const outputChunk = msg.serverContent?.outputTranscription?.text ||
+                        msg.serverContent?.outputAudioTranscription?.text ||
+                        msg.outputTranscription?.text ||
+                        msg.outputAudioTranscription?.text;
+
+    if (outputChunk) {
+      this.currentOutputTranscript += outputChunk;
+    }
+
     // Handle serverContent
     if (msg.serverContent) {
       const parts = msg.serverContent.modelTurn?.parts || [];
       for (const part of parts) {
+        // Stream audio immediately to PcmAudioPlayer (non-blocking)
         if (part.inlineData && part.inlineData.mimeType && part.inlineData.mimeType.startsWith('audio/') && part.inlineData.data) {
           if (this.audioPlayer) {
             this.audioPlayer.playChunk(part.inlineData.data);
           }
         }
-        if (part.text) {
-          this.onTranscript('assistant', part.text);
+        if (part.text && !outputChunk) {
+          this.currentOutputTranscript += part.text;
         }
       }
 
@@ -323,6 +351,21 @@ export class GeminiLiveClient {
       }
 
       if (msg.serverContent.turnComplete) {
+        // Emit accumulated visitor voice transcription if present and not typed
+        if (this.currentInputTranscript.trim() && !this.isTypedQuestion) {
+          this.onTranscript('user', this.currentInputTranscript.trim());
+        }
+
+        // Emit accumulated assistant voice transcription if present
+        if (this.currentOutputTranscript.trim()) {
+          this.onTranscript('assistant', this.currentOutputTranscript.trim());
+        }
+
+        // Reset per-turn transcription buffers
+        this.currentInputTranscript = '';
+        this.currentOutputTranscript = '';
+        this.isTypedQuestion = false;
+
         if (!this.audioPlayer || !this.audioPlayer.isPlaying) {
           this.setState('idle');
         }
@@ -353,6 +396,8 @@ export class GeminiLiveClient {
   sendRealtimeAudioChunk(base64PcmData) {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.isSetupComplete) return;
 
+    this.isTypedQuestion = false;
+
     const audioMsg = {
       realtimeInput: {
         audio: {
@@ -379,6 +424,9 @@ export class GeminiLiveClient {
 
   async sendTextQuestion(question) {
     this.interrupt();
+    this.isTypedQuestion = true;
+    this.currentInputTranscript = '';
+    this.currentOutputTranscript = '';
     this.setState('thinking');
     this.onTranscript('user', question);
 
@@ -410,6 +458,10 @@ export class GeminiLiveClient {
   }
 
   interrupt() {
+    this.currentInputTranscript = '';
+    this.currentOutputTranscript = '';
+    this.isTypedQuestion = false;
+
     if (this.audioPlayer) {
       this.audioPlayer.stop();
     }
@@ -425,6 +477,10 @@ export class GeminiLiveClient {
   disconnect() {
     this.manualClose = true;
     this.isSetupComplete = false;
+    this.currentInputTranscript = '';
+    this.currentOutputTranscript = '';
+    this.isTypedQuestion = false;
+
     if (this.setupTimeout) {
       clearTimeout(this.setupTimeout);
       this.setupTimeout = null;

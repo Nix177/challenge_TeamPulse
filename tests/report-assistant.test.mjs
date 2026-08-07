@@ -348,3 +348,94 @@ test('GeminiLiveClient WebSocket setupComplete handshake lifecycle', async () =>
   global.WebSocket = originalWs;
   global.fetch = originalFetch;
 });
+
+test('GeminiLiveClient voice audio transcription accumulation and turnComplete emission', async () => {
+  const setupSent = [];
+  const transcripts = [];
+  const playedAudio = [];
+
+  const mockAudioPlayer = {
+    playChunk(b64) { playedAudio.push(b64); },
+    stop() {},
+    isPlaying: false
+  };
+
+  const client = new GeminiLiveClient({
+    retriever: { retrieve: async () => ({ contextText: 'context' }) },
+    audioPlayer: mockAudioPlayer,
+    onTranscript: (role, text) => { transcripts.push({ role, text }); }
+  });
+
+  client.ws = {
+    readyState: 1,
+    send(data) { setupSent.push(JSON.parse(data)); }
+  };
+
+  // 1. Verify setup message contents
+  client.sendSetup();
+  assert.equal(setupSent.length, 1);
+  const setup = setupSent[0].setup;
+  assert.equal(Boolean(setup.inputAudioTranscription), true, 'Setup must include inputAudioTranscription');
+  assert.equal(Boolean(setup.outputAudioTranscription), true, 'Setup must include outputAudioTranscription');
+  assert.deepEqual(setup.generationConfig.responseModalities, ['AUDIO'], 'Response modality must remain AUDIO');
+
+  // 2. Incremental voice turn simulation (Microphone speech & Gemini response)
+  client.isSetupComplete = true;
+
+  // Stream microphone audio (resets isTypedQuestion to false)
+  client.sendRealtimeAudioChunk('pcm-mic-chunk');
+  assert.equal(client.isTypedQuestion, false);
+
+  // Receive incremental input transcript chunks
+  await client.handleServerMessage({ data: JSON.stringify({ serverContent: { inputAudioTranscription: { text: 'Bonjour ' } } }) });
+  await client.handleServerMessage({ data: JSON.stringify({ serverContent: { inputAudioTranscription: { text: 'assistant.' } } }) });
+
+  // Receive audio chunk & output transcript chunks
+  await client.handleServerMessage({
+    data: JSON.stringify({
+      serverContent: {
+        modelTurn: { parts: [{ inlineData: { mimeType: 'audio/pcm;rate=24000', data: 'audio-b64-chunk-1' } }] },
+        outputAudioTranscription: { text: 'Bonjour! Comment ' }
+      }
+    })
+  });
+  await client.handleServerMessage({
+    data: JSON.stringify({
+      serverContent: {
+        outputAudioTranscription: { text: 'puis-je vous aider?' }
+      }
+    })
+  });
+
+  // Verify audio chunk played immediately without awaiting turnComplete
+  assert.equal(playedAudio.length, 1);
+  assert.equal(playedAudio[0], 'audio-b64-chunk-1');
+
+  // Verify no transcript emitted before turnComplete
+  assert.equal(transcripts.length, 0);
+
+  // Receive turnComplete
+  await client.handleServerMessage({ data: JSON.stringify({ serverContent: { turnComplete: true } }) });
+
+  // Verify accumulated transcript entries emitted on turnComplete
+  assert.equal(transcripts.length, 2);
+  assert.deepEqual(transcripts[0], { role: 'user', text: 'Bonjour assistant.' });
+  assert.deepEqual(transcripts[1], { role: 'assistant', text: 'Bonjour! Comment puis-je vous aider?' });
+
+  // 3. Typed question simulation (must NOT duplicate user input transcript)
+  transcripts.length = 0;
+  await client.sendTextQuestion('Comment va le projet ?');
+
+  // Typed question emits user entry immediately
+  assert.equal(transcripts.length, 1);
+  assert.deepEqual(transcripts[0], { role: 'user', text: 'Comment va le projet ?' });
+
+  // Input transcription received during typed turn must be ignored
+  await client.handleServerMessage({ data: JSON.stringify({ serverContent: { inputAudioTranscription: { text: 'Ignored duplicate input' } } }) });
+  await client.handleServerMessage({ data: JSON.stringify({ serverContent: { outputAudioTranscription: { text: 'Le projet avance très bien.' } } }) });
+  await client.handleServerMessage({ data: JSON.stringify({ serverContent: { turnComplete: true } }) });
+
+  // Only assistant entry emitted at turnComplete (user entry not duplicated)
+  assert.equal(transcripts.length, 2);
+  assert.deepEqual(transcripts[1], { role: 'assistant', text: 'Le projet avance très bien.' });
+});
